@@ -1,0 +1,130 @@
+max@ubuntu-test:~$ mysqldump mysql help_keyword > mhk_f.sql
+max@ubuntu-test:~$ mysqldump --where="true limit 100" mysql help_keyword > mhk.sql
+max@ubuntu-test:~$ ls -l
+total 68
+-rw-rw-r-- 1 max max  1836 июл 15 19:01  example.sql
+-rw-rw-r-- 1 max max 15524 июл 15 19:32  mhk_f.sql  #Видно, что размер полного дампа значительно больше размера второго
+-rw-rw-r-- 1 max max  3736 июл 15 19:32  mhk.sql    #Видно, что размер полного дампа значительно больше размера второго
+drwxrwxr-x 3 max max  4096 июл 12 15:13  Python3Projects
+drwxr-xr-x 3 max max  4096 июл 12 15:03  snap
+drwxrwxr-t 2 max max  4096 июл 10 16:39  thinclient_drives
+drwxr-xr-x 2 max max  4096 июл 10 16:39  Видео
+drwxr-xr-x 2 max max  4096 июл 14 11:25  Документы
+drwxr-xr-x 2 max max  4096 июл 13 15:06  Загрузки
+drwxr-xr-x 2 max max  4096 июл 10 16:44  Изображения
+drwxr-xr-x 2 max max  4096 июл 10 16:39  Музыка
+drwxr-xr-x 2 max max  4096 июл 10 16:39  Общедоступные
+drwxr-xr-x 2 max max  4096 июл 10 16:39 'Рабочий стол'
+drwxr-xr-x 2 max max  4096 июл 10 16:39  Шаблоны
+max@ubuntu-test:~$
+
+-- После ручной корректировки файла мне удалось восстановить этот дамп в базу "test"
+-- и вот результат чтения этой таблицы:
+
+mysql> select * from help_keyword
+    -> ;
++-----------------+----------------------+
+| help_keyword_id | name                 |
++-----------------+----------------------+
+|             225 | (JSON                |
+|             226 | ->                   |
+|             228 | ->>                  |
+|              46 | <>                   |
+|             630 | ACCOUNT              |
+|             422 | ACTION               |
+|              40 | ADD                  |
+|             655 | ADMIN                |
+|             108 | AES_DECRYPT          |
+|             109 | AES_ENCRYPT          |
+|             341 | AFTER                |
+|              95 | AGAINST              |
+|             677 | AGGREGATE            |
+|             342 | ALGORITHM            |
+|             489 | ALL                  |
+|              41 | ALTER                |
+|             343 | ANALYZE              |
+|              47 | AND                  |
+|             311 | ANY_VALUE            |
+|             423 | ARCHIVE              |
+|             102 | ARRAY                |
+|             490 | AS                   |
+|             259 | ASC                  |
+|             404 | AT                   |
+|             514 | AUTOCOMMIT           |
+|             447 | AUTOEXTEND_SIZE      |
+|             344 | AUTO_INCREMENT       |
+|             345 | AVG_ROW_LENGTH       |
+|             528 | BACKUP               |
+|             542 | BEFORE               |
+|             515 | BEGIN                |
+|              48 | BETWEEN              |
+|              59 | BIGINT               |
+|             104 | BINARY               |
+|             706 | BINLOG               |
+|             312 | BIN_TO_UUID          |
+|               8 | BOOL                 |
+|               9 | BOOLEAN              |
+|              85 | BOTH                 |
+|             408 | BTREE                |
+|             260 | BY                   |
+|              33 | BYTE                 |
+|             714 | CACHE                |
+|             455 | CALL                 |
+|             283 | CAN_ACCESS_COLUMN    |
+|             284 | CAN_ACCESS_DATABASE  |
+|             285 | CAN_ACCESS_TABLE     |
+|             286 | CAN_ACCESS_VIEW      |
+|             424 | CASCADE              |
+|              53 | CASE                 |
+|             610 | CATALOG_NAME         |
+|              62 | CEIL                 |
+|              63 | CEILING              |
+|             516 | CHAIN                |
+|             346 | CHANGE               |
+|             548 | CHANNEL              |
+|              34 | CHAR                 |
+|              30 | CHARACTER            |
+|             689 | CHARSET              |
+|             347 | CHECK                |
+|             348 | CHECKSUM             |
+|             631 | CIPHER               |
+|             611 | CLASS_ORIGIN         |
+|             656 | CLIENT               |
+|             685 | CLONE                |
+|             461 | CLOSE                |
+|             349 | COALESCE             |
+|             709 | CODE                 |
+|             316 | COLLATE              |
+|             691 | COLLATION            |
+|             350 | COLUMN               |
+|             351 | COLUMNS              |
+|             612 | COLUMN_NAME          |
+|             321 | COMMENT              |
+|             517 | COMMIT               |
+|             531 | COMMITTED            |
+|             425 | COMPACT              |
+|             322 | COMPLETION           |
+|             681 | COMPONENT            |
+|             426 | COMPRESSED           |
+|             352 | COMPRESSION          |
+|             476 | CONCURRENT           |
+|             607 | CONDITION            |
+|             353 | CONNECTION           |
+|             518 | CONSISTENT           |
+|             354 | CONSTRAINT           |
+|             613 | CONSTRAINT_CATALOG   |
+|             614 | CONSTRAINT_NAME      |
+|             615 | CONSTRAINT_SCHEMA    |
+|             608 | CONTINUE             |
+|             103 | CONVERT              |
+|             258 | COUNT                |
+|              42 | CREATE               |
+|             256 | CREATE_DH_PARAMETERS |
+|             507 | CROSS                |
+|             427 | CSV                  |
+|             268 | CUME_DIST            |
+|             632 | CURRENT              |
+|             116 | CURRENT_ROLE         |
+|             323 | CURRENT_USER         |
++-----------------+----------------------+
+100 rows in set (0.00 sec)

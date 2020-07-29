@@ -1,0 +1,327 @@
+
+###################################################
+#
+# Разберемся с таблицей 		 COMMUNITIES
+#
+
+select * from communities;
+# Резултьтае получил таблицу в которой created_at содержала даты, меньше чем дата появления интернета. Нужно исправить.
+
+SET SQL_SAFE_UPDATES = 0; # отключение режима safe mode. Чтобы можно было выполнять update и delete
+
+update communities set created_at = '2015-01-01' + INTERVAL RAND()*4*365.25 DAY ;
+# Заменим все даты создания на случайные, начиная с 01.01.2015.
+
+update communities set updated_at = created_at + INTERVAL RAND()*(TO_DAYS(now()) - TO_DAYS(created_at)) DAY ;
+# Заменим все даты обновления на случайные, начиная с даты создания до текущего времени.
+
+select 
+	name,
+    created_at,
+    updated_at,
+    TO_DAYS(updated_at) - TO_DAYS(created_at)
+from communities
+# Результат выполнения запроса говорит о том, что данные корректные. Разность дат обновления и создания везде положительна. А сами даты лежат в интервале 01.01.2015 - текущее время.
+
+DELETE FROM communities WHERE id > 20;
+# Удаление лишних комьюнитис. как на уроке.
+
+###################################################
+#
+# Разберемся с таблицей 		 USERS
+#
+
+select * from users;
+
+# Видим ту же ситуацию, что и в communities. Вносим те-же исправления.
+
+update users set created_at = '2015-01-01' + INTERVAL RAND()*4*365.25 DAY ;
+update users set updated_at = created_at + INTERVAL RAND()*(TO_DAYS(now()) - TO_DAYS(created_at)) DAY ;
+# применяем тот же метод корректировки даты создания и корректировки
+
+select * from users;
+# видим, что с датами все хорошо.
+
+
+###################################################
+#
+# Разберемся с таблицей 		 PROFILES
+#
+
+ALTER TABLE profiles DROP COLUMN created_at;
+# выполнение команды из списка "-- Выполняем на БД vk:"
+
+select * from profiles left outer join users on user_id = id;
+# проверка соответсвий даты обновления в профиле и в пользователях. 
+# 1) Та же ситуация, что и в предыдущих таблицах. Даты обновления меньше даты появления интернета.
+# 2) в поле ender m - заполнено, а f - нет.
+
+update profiles prf left outer join users usr on user_id = id set prf.updated_at = usr.created_at + INTERVAL RAND()*(TO_DAYS(now()) - TO_DAYS(usr.created_at)) DAY ;
+# применяем тот же метод корректировки даты создания и корректировки. Теперь даты изменения профиле не меньше, чем дата создания пользователя.
+
+update profiles set gender = 'f' where gender = '';
+# исправление 2-го "косяка".
+
+CREATE TEMPORARY TABLE countries (name VARCHAR(150));
+INSERT INTO countries VALUES ('Russian Federation'), ('Germany'), ('Belarus'), ('Kazakhstan');
+SELECT * FROM countries;
+UPDATE profiles 
+  SET country = (SELECT name FROM countries ORDER BY RAND() LIMIT 1);
+# Корректировка справочника стран. Как на уроке. Очень понравилось.
+
+
+###################################################
+#
+# Разберемся с таблицей 		 COMMUNITIES_USERS
+#
+
+delete cu from communities_users cu left outer join communities c on cu.community_id = c.id where c.id is null;
+# Удалил лишние строки. Т.к. раньше обрезал  communities до 20 строк.
+
+select * from communities_users cu 
+	left outer join communities c on cu.community_id = c.id
+    left outer join users u on cu.user_id = u.id; 
+# В результате выполнения запроса видно, 
+# 1) что с датами та же проблема, что и в предыдущих таблицах. Плюс	
+# 2) даты рассинхронизированы с таблицами пользователей и коммюнитис.
+
+update communities_users cu 
+	left outer join communities c on cu.community_id = c.id
+    left outer join users u on cu.user_id = u.id 
+set cu.created_at = IF(TO_DAYS(c.created_at) > TO_DAYS(u.created_at), c.created_at, u.created_at) + INTERVAL RAND()*(TO_DAYS(now()) - IF(TO_DAYS(c.created_at) > TO_DAYS(u.created_at), TO_DAYS(c.created_at), TO_DAYS(u.created_at))) DAY;
+# Этот запрос решает сразу обе проблемы. Логика - берем максимальную дату из даты создания коммьюнити и даты создания пользвателя. И добавляем к этой дате случайное количиество дней. Но, чтобы не перепрыгнуть текущую дату.
+
+select avg(tt.com_quantity) from (select user_id, count(community_id) as com_quantity from communities_users group by user_id) as tt;
+# Результат выполненя этого запроса показывает, что в среднем, пользователи входят в 2,25 группы. Т.е. считаем, что распределение удовлетворительное	
+
+ALTER TABLE communities_users
+  ADD CONSTRAINT communities_users_user_fk FOREIGN KEY (user_id) REFERENCES users (id);
+ALTER TABLE communities_users
+  ADD CONSTRAINT community_fk FOREIGN KEY (community_id) REFERENCES communities (id);
+# Добавление индексов. Как на уроке.
+
+
+###################################################
+#
+# Разберемся с таблицей 		 FRIENDSIP_STATUSES
+#
+
+TRUNCATE friendship_statuses;
+INSERT INTO friendship_statuses (name, created_at, updated_at) VALUES
+  ('Requested', '2015-01-01', '2015-01-02'),
+  ('Confirmed', '2015-01-01', '2015-01-02'),
+  ('Rejected', '2015-01-01', '2015-01-02');
+
+# Привести к виду, как на уроке
+
+###################################################
+#
+# Разберемся с таблицей 		 FRIENDSIP
+#
+
+ALTER TABLE friendship DROP COLUMN created_at; 
+# выполнение команды из списка "-- Выполняем на БД vk:" 
+
+UPDATE friendship SET status_id = FLOOR(1 + RAND() * 3); 
+# обноление статусов, как на уроке
+
+DROP TABLE friendship;
+
+CREATE TABLE friendship (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Идентификатор строки',
+  user_id INT UNSIGNED NOT NULL COMMENT 'Ссылка на инициатора дружеских отношений',
+  friend_id INT UNSIGNED NOT NULL COMMENT 'Ссылка на получателя приглашения дружить',
+  status_id INT UNSIGNED NOT NULL COMMENT 'Ссылка на статус (текущее состояние) отношений',
+  requested_at DATETIME DEFAULT NOW() COMMENT 'Время отправления приглашения дружить',
+  confirmed_at DATETIME COMMENT 'Время подтверждения приглашения',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Время создания строки',
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Время 
+
+обновления строки',
+  UNIQUE KEY (user_id, friend_id) COMMENT 'Составной первичный ключ'
+) COMMENT 'Таблица дружбы';
+# обновление таблицы как на уроке с последующим добавлением friendship_history
+
+insert into friendship (user_id, friend_id, status_id, requested_at, confirmed_at, created_at, updated_at)
+select 
+	u1.id as user_id, 
+	u2.id as friend_id, 
+    FLOOR(1 + RAND() * 3) as status_id,
+    IF(TO_DAYS(u1.created_at) > TO_DAYS(u2.created_at), u1.created_at, u2.created_at) + INTERVAL RAND()*(TO_DAYS(now()) - IF(TO_DAYS(u1.created_at) > TO_DAYS(u2.created_at), TO_DAYS(u1.created_at), TO_DAYS(u2.created_at))) DAY as requested_at,
+    null as confirmed_at,
+    null as created_at,
+    null as updated_at    
+from users u1 left outer join users u2 on u1.id <> u2.id
+ORDER BY RAND()
+LIMIT 2000;
+# Перезаполнил случайными данными. С соблюдением ограничений на дату запроса о дружбе. Дата должна быть больше, чем дата создания обоих пользователей.
+
+update friendship set created_at = requested_at, updated_at = requested_at where status_id = 1;
+update friendship set created_at = requested_at, confirmed_at = requested_at + INTERVAL 3 DAY, updated_at = requested_at + INTERVAL 3 DAY where status_id = 2;
+update friendship set created_at = requested_at, confirmed_at = requested_at + INTERVAL 3 DAY, updated_at = requested_at + INTERVAL RAND()*(TO_DAYS(now()) - TO_DAYS(requested_at + INTERVAL 3 DAY)) DAY where status_id = 3;
+# заполнение правильных дат у статусов дружбы. 
+# 1) В первом случае дата создания и изменения совпадают с датой запроса дружбы.
+# 2) Во втором случае дата подтверждения и дата обновления - это дата запроса + 3 дня.
+# 3) В последнем случае дата расторжения дружбы - случайная дата с момента подтверждения до текущей даты.
+
+ALTER TABLE friendship
+  ADD CONSTRAINT friendship_user_fk FOREIGN KEY (user_id) REFERENCES users (id);
+ALTER TABLE friendship
+  ADD CONSTRAINT friendship_friend_fk FOREIGN KEY (friend_id) REFERENCES users (id);
+ALTER TABLE friendship
+  ADD CONSTRAINT status_fk FOREIGN KEY (status_id) REFERENCES friendship_statuses (id);
+# Добавление индексов, как на уроке.
+
+###################################################
+#
+# Разберемся с таблицей 		 FRIENDSIP_HISTORY
+#
+
+CREATE TABLE friendship_history (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Идентификатор строки',
+  friendship_id INT UNSIGNED NOT NULL COMMENT 'Ссылка на запись о дружеских отношениях',
+  status_id INT UNSIGNED NOT NULL COMMENT 'Ссылка на статус отношений',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Время создания строки',
+  CONSTRAINT friendship_fk FOREIGN KEY (friendship_id) REFERENCES friendship (id),
+  CONSTRAINT friendship_history_status_fk FOREIGN KEY (status_id) REFERENCES friendship_statuses 
+
+(id)
+) COMMENT 'История дружбы';
+# Создание таблицы "История дружбы"
+
+insert into friendship_history (friendship_id, status_id, created_at)
+select 
+	id as friendship_id,
+    1 as status_id,
+    requested_at as created_at
+from friendship 
+union all
+select
+	id as friendship_id,
+    2 as status_id,
+    confirmed_at as created_at
+from friendship 
+where status_id = 2 or status_id = 3
+union all
+select
+	id as friendship_id,
+    3 as status_id,
+    updated_at as created_at
+from friendship 
+where status_id = 3;
+# Заполнение таблицы "История дружбы" на основании таблицы friendship, Логика следующая:
+#	1) все строки в таблице friendship были (или до сих пор находятся) в статусе  "Requested". Берем дату requested_at.
+#	2) Часть строк перешла в статус "Confirmed". Берем дату confirmed_at.
+#	3) И еще какая-то часть перешла в статус "Rejected". Берем дату updated_at.
+
+
+###################################################
+#
+# Разберемся с таблицей 		 MEDIA_TYPES
+#
+
+ALTER TABLE media_types DROP COLUMN updated_at;
+# выполнение команды из списка "-- Выполняем на БД vk:"
+
+TRUNCATE media_types;
+INSERT INTO media_types (name, created_at) VALUES
+  ('photo', '2015-01-01'),
+  ('video', '2015-01-01'),
+  ('audio', '2015-01-01');
+ # Перезаполнение таблицы media_types
+
+###################################################
+#
+# Разберемся с таблицей 		 MEDIA
+#
+
+CREATE TEMPORARY TABLE extensions (name VARCHAR(10));
+INSERT INTO extensions VALUES ('jpeg'), ('bmp'), ('gif'), ('png');
+# Создание таблицы разрешений.
+
+UPDATE media SET filename = CONCAT('https://dropbox/vk/',
+  filename,
+  '.',
+  (SELECT name FROM extensions ORDER BY RAND() LIMIT 1)
+);
+# Приведение разрешений медийных файлов к правильному виду.
+
+UPDATE media SET size = FLOOR(10000 + (RAND() * 1000000)) WHERE size < 1000;
+# Корректировка размеров файлов.
+
+UPDATE media SET metadata = CONCAT('{"owner":"', 
+  (SELECT CONCAT(first_name, ' ', last_name) FROM users WHERE id = user_id),
+  '"}');  
+ALTER TABLE media MODIFY COLUMN metadata JSON;
+# Заполнение поля metadata
+
+update media set media_type_id = 1;
+# Так получилось, что все фотки.
+
+insert into media (user_id, filename, size, metadata, media_type_id, created_at, updated_at)
+select 
+	user_id,
+    CONCAT('https://dropbox/vk/',
+    SUBSTRING(MD5(RAND()) FROM 1 FOR 6),
+    '.avi') as filename,
+    size,
+    metadata,
+    2,
+    created_at,
+    updated_at
+from media
+order by RAND() limit 75;
+# Добавим видео.
+
+insert into media (user_id, filename, size, metadata, media_type_id, created_at, updated_at)
+select 
+	user_id,
+    CONCAT('https://dropbox/vk/',
+    SUBSTRING(MD5(RAND()) FROM 1 FOR 6),
+    '.mp3') as filename,
+    size,
+    metadata,
+    3,
+    created_at,
+    updated_at
+from media
+order by RAND();
+# Добавим аудио.
+
+update media m left join users u on m.user_id = u.id set m.created_at = u.created_at + INTERVAL RAND()*(TO_DAYS(now()) - TO_DAYS(u.created_at)) DAY;
+# Корректировка даты создания медиа-конеткста
+
+update media set updated_at = created_at + INTERVAL RAND()*(TO_DAYS(now()) - TO_DAYS(created_at)) DAY ;
+# корректировка даты обновления
+
+
+ALTER TABLE media
+  ADD CONSTRAINT media_user_fk FOREIGN KEY (user_id) REFERENCES users (id);
+ALTER TABLE media
+  ADD CONSTRAINT media_type_fk FOREIGN KEY (media_type_id) REFERENCES media_types (id);
+# Формирование индексов.
+
+###################################################
+#
+# Разберемся с таблицей 		 MESSAGES
+#
+
+ALTER TABLE messages ADD COLUMN is_modified BOOLEAN AFTER is_delivered;
+
+update messages set to_user_id = RAND()*100 where from_user_id = to_user_id;
+update messages set to_user_id = RAND()*100 where from_user_id = to_user_id;
+# За 2 итерации удалились все сообщения "самому себе".
+
+update messages m 
+	left outer join users u1 on m.from_user_id = u1.id
+    left outer join users u2 on m.to_user_id = u2.id   
+set m.created_at = IF(TO_DAYS(u1.created_at) > TO_DAYS(u2.created_at), u1.created_at, u2.created_at) + INTERVAL RAND()*(TO_DAYS(now()) - IF(TO_DAYS(u1.created_at) > TO_DAYS(u2.created_at), TO_DAYS(u1.created_at), TO_DAYS(u2.created_at))) DAY;
+# Выравнивание даты сообщения к дате создания пользователя. Т.е. перенос в интервал, между созданием обоих пользователей и текущей датой.
+
+update messages set updated_at = created_at;
+# Вряд ли кто-то часто обновляет сообщения.
+
+update messages set updated_at = created_at + INTERVAL RAND()*(TO_DAYS(now()) - TO_DAYS(created_at)) DAY order by RAND() limit 50 ;
+# но пусть 10% все-таки поменяли.
+#
+#

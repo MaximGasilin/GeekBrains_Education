@@ -1,0 +1,65 @@
+max@ubuntu-test:~$ mysql
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 28
+Server version: 8.0.20-0ubuntu0.20.04.1 (Ubuntu)
+
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| example            |
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+5 rows in set (0.00 sec)
+
+mysql> use example
+Database changed
+mysql> show tables;
++-------------------+
+| Tables_in_example |
++-------------------+
+| users             |
++-------------------+
+1 row in set (0.00 sec)
+
+mysql> exit
+Bye
+
+max@ubuntu-test:~$ mysqlshow example
+Database: example
++--------+
+| Tables |
++--------+
+| users  |
++--------+
+max@ubuntu-test:~$ mysqldump example > example.sql
+max@ubuntu-test:~$ ls
+ example.sql       snap                Видео       Загрузки      Музыка         'Рабочий стол'
+ Python3Projects   thinclient_drives   Документы   Изображения   Общедоступные   Шаблоны
+max@ubuntu-test:~$ mysqladmin create sample
+max@ubuntu-test:~$ mysqlshow sample
+Database: sample
++--------+
+| Tables |
++--------+
++--------+
+max@ubuntu-test:~$ mysql sample < example.sql
+max@ubuntu-test:~$ mysqlshow sample
+Database: sample
++--------+
+| Tables |
++--------+
+| users  |
++--------+
+max@ubuntu-test:~$
