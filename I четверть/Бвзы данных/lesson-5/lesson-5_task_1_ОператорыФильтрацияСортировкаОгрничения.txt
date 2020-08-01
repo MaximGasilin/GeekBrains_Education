@@ -1,0 +1,325 @@
+CREATE DATABASE lesson_5 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+SHOW DATABASES;
+
+USE lesson_5;
+
+######################################################################################################################
+# 1. Пусть в таблице users поля created_at и updated_at оказались незаполненными. Заполните их текущими датой и временем.
+
+DROP TABLE IF EXISTS users;
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) COMMENT 'Имя пользователя',
+  birthday_at DATE COMMENT 'Дата рождения',
+  created_at DATETIME DEFAULT NULL,
+  updated_at DATETIME DEFAULT NULL
+) COMMENT = 'Пользователи';
+
+INSERT INTO users (name, birthday_at) VALUES
+  ('Геннадий', '1990-10-05'),
+  ('Наталья', '1984-11-12'),
+  ('Александр', '1985-05-20'),
+  ('Сергей', '1988-02-14'),
+  ('Иван', '1998-01-12'),
+  ('Мария', '1992-08-29');
+  
+  DROP TABLE IF EXISTS users;
+  CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) COMMENT 'Имя пользователя',
+  birthday_at DATE COMMENT 'Дата рождения',
+  created_at DATETIME DEFAULT NULL,
+  updated_at DATETIME DEFAULT NULL
+  ) COMMENT = 'Пользователи';
+
+INSERT INTO users (name, birthday_at) VALUES
+  ('Геннадий', '1990-10-05'),
+  ('Наталья', '1984-11-12'),
+  ('Александр', '1985-05-20'),
+  ('Сергей', '1988-02-14'),
+  ('Иван', '1998-01-12'),
+  ('Мария', '1992-08-29');
+  
+SELECT * FROM users
+
++----+--------------------+-------------+------------+------------+
+| id | name               | birthday_at | created_at | updated_at |
++----+--------------------+-------------+------------+------------+
+|  1 | Геннадий           | 1990-10-05  | NULL       | NULL       |
+|  2 | Наталья            | 1984-11-12  | NULL       | NULL       |
+|  3 | Александр          | 1985-05-20  | NULL       | NULL       |
+|  4 | Сергей             | 1988-02-14  | NULL       | NULL       |
+|  5 | Иван               | 1998-01-12  | NULL       | NULL       |
+|  6 | Мария              | 1992-08-29  | NULL       | NULL       |
++----+--------------------+-------------+------------+------------+
+6 rows in set (0.00 sec)
+
+UPDATE users SET created_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP;
+
+SELECT * FROM users;
+
++----+--------------------+-------------+---------------------+---------------------+
+| id | name               | birthday_at | created_at          | updated_at          |
++----+--------------------+-------------+---------------------+---------------------+
+|  1 | Геннадий           | 1990-10-05  | 2020-07-28 19:17:30 | 2020-07-28 19:17:30 |
+|  2 | Наталья            | 1984-11-12  | 2020-07-28 19:17:30 | 2020-07-28 19:17:30 |
+|  3 | Александр          | 1985-05-20  | 2020-07-28 19:17:30 | 2020-07-28 19:17:30 |
+|  4 | Сергей             | 1988-02-14  | 2020-07-28 19:17:30 | 2020-07-28 19:17:30 |
+|  5 | Иван               | 1998-01-12  | 2020-07-28 19:17:30 | 2020-07-28 19:17:30 |
+|  6 | Мария              | 1992-08-29  | 2020-07-28 19:17:30 | 2020-07-28 19:17:30 |
++----+--------------------+-------------+---------------------+---------------------+
+6 rows in set (0.00 sec)
+
+
+######################################################################################################################
+# 2. Таблица users была неудачно спроектирована. Записи created_at и updated_at были заданы типом VARCHAR и в них долгое время помещались значения в формате 20.10.2017 8:10. 
+# Необходимо преобразовать поля к типу DATETIME, сохранив введённые ранее значения.
+
+DROP TABLE IF EXISTS users;
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) COMMENT 'Имя пользователя',
+  birthday_at DATE COMMENT 'Дата рождения',
+  created_at VARCHAR(255) DEFAULT NULL,
+  updated_at VARCHAR(255) DEFAULT NULL
+) COMMENT = 'Пользователи';
+
+SET@MIN ='2020-01-01 00:00:00';
+SET@MID ='2020-07-28 18:00:00';
+SET@MAX ='2020-07-28 18:00:00';
+
+INSERT INTO users (name, birthday_at, created_at, updated_at) VALUES
+  ('Геннадий', '1990-10-05', DATE_FORMAT(TIMESTAMPADD(SECOND, FLOOR(RAND()* TIMESTAMPDIFF(SECOND,@MIN,@MID)),@MIN), '%d.%m.%Y %H:%i:%s'), DATE_FORMAT(TIMESTAMPADD(SECOND, FLOOR(RAND()* TIMESTAMPDIFF(SECOND,@MID,@MAX)),@MID), '%d.%m.%Y %H:%i:%s')),
+  ('Наталья', '1984-11-12', DATE_FORMAT(TIMESTAMPADD(SECOND, FLOOR(RAND()* TIMESTAMPDIFF(SECOND,@MIN,@MID)),@MIN), '%d.%m.%Y %H:%i:%s'), DATE_FORMAT(TIMESTAMPADD(SECOND, FLOOR(RAND()* TIMESTAMPDIFF(SECOND,@MID,@MAX)),@MID), '%d.%m.%Y %H:%i:%s')),
+  ('Александр', '1985-05-20', DATE_FORMAT(TIMESTAMPADD(SECOND, FLOOR(RAND()* TIMESTAMPDIFF(SECOND,@MIN,@MID)),@MIN), '%d.%m.%Y %H:%i:%s'), DATE_FORMAT(TIMESTAMPADD(SECOND, FLOOR(RAND()* TIMESTAMPDIFF(SECOND,@MID,@MAX)),@MID), '%d.%m.%Y %H:%i:%s')),
+  ('Сергей', '1988-02-14', DATE_FORMAT(TIMESTAMPADD(SECOND, FLOOR(RAND()* TIMESTAMPDIFF(SECOND,@MIN,@MID)),@MIN), '%d.%m.%Y %H:%i:%s'), DATE_FORMAT(TIMESTAMPADD(SECOND, FLOOR(RAND()* TIMESTAMPDIFF(SECOND,@MID,@MAX)),@MID), '%d.%m.%Y %H:%i:%s')),
+  ('Иван', '1998-01-12', DATE_FORMAT(TIMESTAMPADD(SECOND, FLOOR(RAND()* TIMESTAMPDIFF(SECOND,@MIN,@MID)),@MIN), '%d.%m.%Y %H:%i:%s'), DATE_FORMAT(TIMESTAMPADD(SECOND, FLOOR(RAND()* TIMESTAMPDIFF(SECOND,@MID,@MAX)),@MID), '%d.%m.%Y %H:%i:%s')),
+  ('Мария', '1992-08-29', DATE_FORMAT(TIMESTAMPADD(SECOND, FLOOR(RAND()* TIMESTAMPDIFF(SECOND,@MIN,@MID)),@MIN), '%d.%m.%Y %H:%i:%s'), DATE_FORMAT(TIMESTAMPADD(SECOND, FLOOR(RAND()* TIMESTAMPDIFF(SECOND,@MID,@MAX)),@MID), '%d.%m.%Y %H:%i:%s'));
+
+SELECT * FROM users;
++----+--------------------+-------------+---------------------+---------------------+
+| id | name               | birthday_at | created_at          | updated_at          |
++----+--------------------+-------------+---------------------+---------------------+
+|  1 | Геннадий           | 1990-10-05  | 16.03.2020 01:37:45 | 08.07.2020 07:00:24 |
+|  2 | Наталья            | 1984-11-12  | 30.04.2020 08:37:06 | 31.05.2020 21:51:38 |
+|  3 | Александр          | 1985-05-20  | 03.05.2020 17:05:13 | 28.05.2020 22:17:37 |
+|  4 | Сергей             | 1988-02-14  | 18.03.2020 07:05:27 | 03.07.2020 16:50:05 |
+|  5 | Иван               | 1998-01-12  | 27.02.2020 16:56:49 | 08.06.2020 05:13:08 |
+|  6 | Мария              | 1992-08-29  | 13.04.2020 06:10:36 | 26.07.2020 01:38:48 |
++----+--------------------+-------------+---------------------+---------------------+
+6 rows in set (0.00 sec)
+
+DESCRIBE users;
++-------------+-----------------+------+-----+---------+----------------+
+| Field       | Type            | Null | Key | Default | Extra          |
++-------------+-----------------+------+-----+---------+----------------+
+| id          | bigint unsigned | NO   | PRI | NULL    | auto_increment |
+| name        | varchar(255)    | YES  |     | NULL    |                |
+| birthday_at | date            | YES  |     | NULL    |                |
+| created_at  | varchar(255)    | YES  |     | NULL    |                |
+| updated_at  | varchar(255)    | YES  |     | NULL    |                |
++-------------+-----------------+------+-----+---------+----------------+
+5 rows in set (0.00 sec)
+
+ALTER TABLE users ADD COLUMN created_at_n DATETIME;
+ALTER TABLE users ADD COLUMN updated_at_n DATETIME;
+
+UPDATE users set created_at_n = STR_TO_DATE(created_at, '%d.%m.%Y %H:%i:%s'), updated_at_n = STR_TO_DATE(updated_at, '%d.%m.%Y %H:%i:%s');
+
+ALTER TABLE users DROP COLUMN created_at;
+ALTER TABLE users DROP COLUMN updated_at;
+ALTER TABLE users RENAME COLUMN created_at_n TO created_at;
+ALTER TABLE users RENAME COLUMN updated_at_n TO updated_at;
+
+SELECT * FROM users;
++----+--------------------+-------------+---------------------+---------------------+
+| id | name               | birthday_at | created_at          | updated_at          |
++----+--------------------+-------------+---------------------+---------------------+
+|  1 | Геннадий           | 1990-10-05  | 2020-03-16 01:37:45 | 2020-07-08 07:00:24 |
+|  2 | Наталья            | 1984-11-12  | 2020-04-30 08:37:06 | 2020-05-31 21:51:38 |
+|  3 | Александр          | 1985-05-20  | 2020-05-03 17:05:13 | 2020-05-28 22:17:37 |
+|  4 | Сергей             | 1988-02-14  | 2020-03-18 07:05:27 | 2020-07-03 16:50:05 |
+|  5 | Иван               | 1998-01-12  | 2020-02-27 16:56:49 | 2020-06-08 05:13:08 |
+|  6 | Мария              | 1992-08-29  | 2020-04-13 06:10:36 | 2020-07-26 01:38:48 |
++----+--------------------+-------------+---------------------+---------------------+
+6 rows in set (0.00 sec)
+
+DESCRIBE users;
+
++-------------+-----------------+------+-----+---------+----------------+
+| Field       | Type            | Null | Key | Default | Extra          |
++-------------+-----------------+------+-----+---------+----------------+
+| id          | bigint unsigned | NO   | PRI | NULL    | auto_increment |
+| name        | varchar(255)    | YES  |     | NULL    |                |
+| birthday_at | date            | YES  |     | NULL    |                |
+| created_at  | datetime        | YES  |     | NULL    |                |
+| updated_at  | datetime        | YES  |     | NULL    |                |
++-------------+-----------------+------+-----+---------+----------------+
+5 rows in set (0.00 sec)
+
+######################################################################################################################
+# 3. В таблице складских запасов storehouses_products в поле value могут встречаться самые разные цифры: 0, если товар закончился и выше нуля, 
+# если на складе имеются запасы. Необходимо отсортировать записи таким образом, чтобы они выводились в порядке увеличения значения value. 
+# Однако нулевые запасы должны выводиться в конце, после всех записей.
+
+DROP TABLE IF EXISTS products;
+CREATE TABLE products (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) COMMENT 'Название',
+  description TEXT COMMENT 'Описание',
+  price DECIMAL (11,2) COMMENT 'Цена',
+  catalog_id INT UNSIGNED,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY index_of_catalog_id (catalog_id)
+) COMMENT = 'Товарные позиции';
+
+INSERT INTO products
+  (name, description, price, catalog_id)
+VALUES
+  ('Intel Core i3-8100', 'Процессор для настольных персональных компьютеров, основанных на платформе Intel.', 7890.00, 1),
+  ('Intel Core i5-7400', 'Процессор для настольных персональных компьютеров, основанных на платформе Intel.', 12700.00, 1),
+  ('AMD FX-8320E', 'Процессор для настольных персональных компьютеров, основанных на платформе AMD.', 4780.00, 1),
+  ('AMD FX-8320', 'Процессор для настольных персональных компьютеров, основанных на платформе AMD.', 7120.00, 1),
+  ('ASUS ROG MAXIMUS X HERO', 'Материнская плата ASUS ROG MAXIMUS X HERO, Z370, Socket 1151-V2, DDR4, ATX', 19310.00, 2),
+  ('Gigabyte H310M S2H', 'Материнская плата Gigabyte H310M S2H, H310, Socket 1151-V2, DDR4, mATX', 4790.00, 2),
+  ('MSI B250M GAMING PRO', 'Материнская плата MSI B250M GAMING PRO, B250, Socket 1151, DDR4, mATX', 5060.00, 2);
+
+
+DROP TABLE IF EXISTS storehouses_products;
+CREATE TABLE storehouses_products (
+  id SERIAL PRIMARY KEY,
+  storehouse_id INT UNSIGNED,
+  product_id INT UNSIGNED,
+  value INT UNSIGNED COMMENT 'Запас товарной позиции на складе',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) COMMENT = 'Запасы на складе';
+
+INSERT INTO storehouses_products
+  (product_id, value)
+VALUES
+  (1, 0),
+  (2, 2500),
+  (3, 0),
+  (4, 30),
+  (5, 500),
+  (6, 1),
+  (7, 0);
+
+SELECT * FROM storehouses_products;
++----+---------------+------------+-------+---------------------+---------------------+
+| id | storehouse_id | product_id | value | created_at          | updated_at          |
++----+---------------+------------+-------+---------------------+---------------------+
+|  1 |          NULL |          1 |     0 | 2020-07-29 16:05:45 | 2020-07-29 16:05:45 |
+|  2 |          NULL |          2 |  2500 | 2020-07-29 16:05:45 | 2020-07-29 16:05:45 |
+|  3 |          NULL |          3 |     0 | 2020-07-29 16:05:45 | 2020-07-29 16:05:45 |
+|  4 |          NULL |          4 |    30 | 2020-07-29 16:05:45 | 2020-07-29 16:05:45 |
+|  5 |          NULL |          5 |   500 | 2020-07-29 16:05:45 | 2020-07-29 16:05:45 |
+|  6 |          NULL |          6 |     1 | 2020-07-29 16:05:45 | 2020-07-29 16:05:45 |
+|  7 |          NULL |          7 |     0 | 2020-07-29 16:05:45 | 2020-07-29 16:05:45 |
++----+---------------+------------+-------+---------------------+---------------------+
+7 rows in set (0.00 sec)
+
+# Собственно выполнение 3-й подзадачи
+
+SELECT 
+	p.name as name,
+    sp.value as value
+FROM storehouses_products AS sp
+	LEFT JOIN products AS p
+		ON sp.product_id = p.id
+ORDER BY 
+	CASE WHEN sp.value = 0 THEN 1 ELSE 0 END,   # Первая сотрировка по признаку (ноль, или не ноль). А врамках этой сортировки - по возрастанию  value Можнжо было бы и заменять ноль на 99999999, но вдруг на складе будет столько товара?
+	sp.value; 
+
++-------------------------+-------+
+| name                    | value |
++-------------------------+-------+
+| Gigabyte H310M S2H      |     1 |
+| AMD FX-8320             |    30 |
+| ASUS ROG MAXIMUS X HERO |   500 |
+| Intel Core i5-7400      |  2500 |
+| Intel Core i3-8100      |     0 |
+| AMD FX-8320E            |     0 |
+| MSI B250M GAMING PRO    |     0 |
++-------------------------+-------+
+7 rows in set (0.00 sec)
+
+######################################################################################################################
+# 4. (по желанию) Из таблицы users необходимо извлечь пользователей, родившихся в августе и мае. Месяцы заданы в виде списка английских названий (may, august)
+
+SELECT * FROM users;
+
++----+--------------------+-------------+---------------------+---------------------+
+| id | name               | birthday_at | created_at          | updated_at          |
++----+--------------------+-------------+---------------------+---------------------+
+|  1 | Геннадий           | 1990-10-05  | 2020-03-16 01:37:45 | 2020-07-08 07:00:24 |
+|  2 | Наталья            | 1984-11-12  | 2020-04-30 08:37:06 | 2020-05-31 21:51:38 |
+|  3 | Александр          | 1985-05-20  | 2020-05-03 17:05:13 | 2020-05-28 22:17:37 |
+|  4 | Сергей             | 1988-02-14  | 2020-03-18 07:05:27 | 2020-07-03 16:50:05 |
+|  5 | Иван               | 1998-01-12  | 2020-02-27 16:56:49 | 2020-06-08 05:13:08 |
+|  6 | Мария              | 1992-08-29  | 2020-04-13 06:10:36 | 2020-07-26 01:38:48 |
++----+--------------------+-------------+---------------------+---------------------+
+6 rows in set (0.00 sec)
+
+# собственно задание:
+
+SELECT 
+	name,
+	birthday_at,
+	created_at,
+	updated_at
+FROM users
+WHERE LOWER(DATE_FORMAT(birthday_at, '%M')) in ('may', 'august');
+
++--------------------+-------------+---------------------+---------------------+
+| name               | birthday_at | created_at          | updated_at          |
++--------------------+-------------+---------------------+---------------------+
+| Александр          | 1985-05-20  | 2020-05-03 17:05:13 | 2020-05-28 22:17:37 |
+| Мария              | 1992-08-29  | 2020-04-13 06:10:36 | 2020-07-26 01:38:48 |
++--------------------+-------------+---------------------+---------------------+
+2 rows in set (0.00 sec)
+
+######################################################################################################################
+# 5.(по желанию) Из таблицы catalogs извлекаются записи при помощи запроса. SELECT * FROM catalogs WHERE id IN (5, 1, 2); Отсортируйте записи в порядке, заданном в списке IN.
+
+DROP TABLE IF EXISTS catalogs;
+CREATE TABLE catalogs (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) COMMENT 'Название раздела',
+  UNIQUE unique_name(name(10))
+) COMMENT = 'Разделы интернет-магазина';
+
+INSERT INTO catalogs VALUES
+  (NULL, 'Процессоры'),
+  (NULL, 'Материнские платы'),
+  (NULL, 'Видеокарты'),
+  (NULL, 'Жесткие диски'),
+  (NULL, 'Оперативная память');
+  
+SELECT * FROM catalogs;
+
++----+-------------------------------------+
+| id | name                                |
++----+-------------------------------------+
+|  1 | Процессоры                          |
+|  2 | Материнские платы                   |
+|  3 | Видеокарты                          |
+|  4 | Жесткие диски                       |
+|  5 | Оперативная память                  |
++----+-------------------------------------+
+5 rows in set (0.00 sec)
+
+# Само задание 
+
+SELECT * FROM catalogs WHERE id IN (5, 1, 2) ORDER BY FIELD(id, 5, 1, 2);
+
++----+-------------------------------------+
+| id | name                                |
++----+-------------------------------------+
+|  5 | Оперативная память                  |
+|  1 | Процессоры                          |
+|  2 | Материнские платы                   |
++----+-------------------------------------+
+3 rows in set (0.00 sec)
