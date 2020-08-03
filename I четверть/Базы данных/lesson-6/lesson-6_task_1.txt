@@ -1,0 +1,94 @@
+--1. Создать все необходимые внешние ключи и диаграмму отношений.
+
+USE example;
+
+-- Проверка уже существующих внешних ключей
+select 
+  TABLE_NAME,COLUMN_NAME,CONSTRAINT_NAME,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME 
+from 
+  INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+where 
+  TABLE_SCHEMA = "example" 
+and 
+  REFERENCED_COLUMN_NAME is not NULL;
+  
++--------------------+---------------+------------------------------+-----------------------+------------------------+
+| TABLE_NAME         | COLUMN_NAME   | CONSTRAINT_NAME              | REFERENCED_TABLE_NAME | REFERENCED_COLUMN_NAME |
++--------------------+---------------+------------------------------+-----------------------+------------------------+
+| communities_users  | user_id       | communities_users_user_fk    | users                 | id                     |
+| communities_users  | community_id  | community_fk                 | communities           | id                     |
+| friendship         | friend_id     | friendship_friend_fk         | users                 | id                     |
+| friendship         | user_id       | friendship_user_fk           | users                 | id                     |
+| friendship         | status_id     | status_fk                    | friendship_statuses   | id                     |
+| friendship_history | friendship_id | friendship_fk                | friendship            | id                     |
+| friendship_history | status_id     | friendship_history_status_fk | friendship_statuses   | id                     |
+| media              | media_type_id | media_type_fk                | media_types           | id                     |
+| media              | user_id       | media_user_fk                | users                 | id                     |
+| messages           | from_user_id  | from_user_fk                 | users                 | id                     |
+| messages           | to_user_id    | to_user_fk                   | users                 | id                     |
++--------------------+---------------+------------------------------+-----------------------+------------------------+
+11 rows in set (0.00 sec)
+
+-- Не хватает нескольких внешних ключей нужно их добавить:
+-- 1) Для таблицы profiles
+-- 2) Для таблицы posts
+-- 3) Для таблицы likes
+
+ALTER TABLE profiles
+ADD CONSTRAINT profiles_user_id_fk 
+ FOREIGN KEY (user_id) REFERENCES users(id)
+   ON DELETE CASCADE,
+ADD CONSTRAINT profiles_photo_id_fk
+ FOREIGN KEY (photo_id) REFERENCES media(id)
+   ON DELETE SET NULL;
+   
+ALTER TABLE posts
+ADD CONSTRAINT posts_user_id_fk 
+ FOREIGN KEY (user_id) REFERENCES users(id)
+   ON DELETE  CASCADE,
+ADD CONSTRAINT posts_community_id_fk
+ FOREIGN KEY (community_id) REFERENCES communities(id)
+   ON DELETE CASCADE;
+  
+ALTER TABLE likes
+ADD CONSTRAINT likes_target_type_id_fk 
+ FOREIGN KEY (target_type_id) REFERENCES target_types(id)
+   ON DELETE  CASCADE,
+ADD CONSTRAINT likes_user_id_fk_fk
+ FOREIGN KEY (user_id) REFERENCES users(id)
+   ON DELETE CASCADE;  
+   
+ -- проверка
+ select 
+  TABLE_NAME,COLUMN_NAME,CONSTRAINT_NAME,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME 
+from 
+  INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+where 
+  TABLE_SCHEMA = "example" 
+and 
+  REFERENCED_COLUMN_NAME is not NULL;
+  
++--------------------+----------------+------------------------------+-----------------------+------------------------+
+| TABLE_NAME         | COLUMN_NAME    | CONSTRAINT_NAME              | REFERENCED_TABLE_NAME | REFERENCED_COLUMN_NAME |
++--------------------+----------------+------------------------------+-----------------------+------------------------+
+| communities_users  | user_id        | communities_users_user_fk    | users                 | id                     |
+| communities_users  | community_id   | community_fk                 | communities           | id                     |
+| friendship         | friend_id      | friendship_friend_fk         | users                 | id                     |
+| friendship         | user_id        | friendship_user_fk           | users                 | id                     |
+| friendship         | status_id      | status_fk                    | friendship_statuses   | id                     |
+| friendship_history | friendship_id  | friendship_fk                | friendship            | id                     |
+| friendship_history | status_id      | friendship_history_status_fk | friendship_statuses   | id                     |
+| likes              | target_type_id | likes_target_type_id_fk      | target_types          | id                     |
+| likes              | user_id        | likes_user_id_fk_fk          | users                 | id                     |
+| media              | media_type_id  | media_type_fk                | media_types           | id                     |
+| media              | user_id        | media_user_fk                | users                 | id                     |
+| messages           | from_user_id   | from_user_fk                 | users                 | id                     |
+| messages           | to_user_id     | to_user_fk                   | users                 | id                     |
+| posts              | community_id   | posts_community_id_fk        | communities           | id                     |
+| posts              | user_id        | posts_user_id_fk             | users                 | id                     |
+| profiles           | photo_id       | profiles_photo_id_fk         | media                 | id                     |
+| profiles           | user_id        | profiles_user_id_fk          | users                 | id                     |
++--------------------+----------------+------------------------------+-----------------------+------------------------+
+17 rows in set (0.00 sec)
+
+-- Диаграмме, которая прикреплена к заданию в файле lesson-6_task_2.pdf видно, что все таблицы связаны.

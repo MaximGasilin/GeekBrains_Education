@@ -1,0 +1,224 @@
+-- 2. Создать и заполнить таблицы лайков и постов.
+
+USE example;
+
+-- Вариант 10 (финальный)
+-- Применим вариант с таблицей типов лайков
+-- (применяем к базе vk только этот вариант!)
+
+-- Таблица типов лайков
+ DROP TABLE IF EXISTS target_types;
+ CREATE TABLE target_types (
+   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+   name VARCHAR(255) NOT NULL UNIQUE,
+   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+ );
+
+ INSERT INTO target_types (name) VALUES 
+   ('messages'),
+   ('users'),
+   ('media'),
+   ('posts');
+
+SELECT * FROM target_types;
+
++----+----------+---------------------+
+| id | name     | created_at          |
++----+----------+---------------------+
+|  1 | messages | 2020-08-02 19:42:22 |
+|  2 | users    | 2020-08-02 19:42:22 |
+|  3 | media    | 2020-08-02 19:42:22 |
+|  4 | posts    | 2020-08-02 19:42:22 |
++----+----------+---------------------+
+4 rows in set (0.00 sec)
+
+-- Таблица лайков
+DROP TABLE IF EXISTS likes;
+CREATE TABLE likes (
+   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+   user_id INT UNSIGNED NOT NULL,
+   target_id INT UNSIGNED NOT NULL,
+   target_type_id INT UNSIGNED NOT NULL,
+   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+ );
+
+-- Заполняем лайки
+INSERT INTO likes 
+SELECT 
+	id, 
+    FLOOR(1 + (RAND() * 100)), 
+    FLOOR(1 + (RAND() * 100)),
+    FLOOR(1 + (RAND() * 4)),
+    CURRENT_TIMESTAMP 
+FROM messages;
+
+-- Проверим
+SELECT * FROM likes LIMIT 10;
+
+
+-- Создадим таблицу постов
+DROP TABLE IF EXISTS posts;
+CREATE TABLE posts (
+   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+   user_id INT UNSIGNED NOT NULL,
+   community_id INT UNSIGNED,
+   head VARCHAR(255),
+   body TEXT NOT NULL,
+   media_id INT UNSIGNED,
+   is_public BOOLEAN DEFAULT TRUE,
+   is_archived BOOLEAN DEFAULT FALSE,
+   views_counter INT UNSIGNED DEFAULT 0,
+   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+ );
+
+-- Заполнение таблицы постов
+
+CREATE TEMPORARY TABLE `tmp_table`
+SELECT 
+   FLOOR(1 + (RAND() * 100)) AS user_id, 
+   FLOOR(1 + (RAND() * 20)) AS community_id,
+   SUBSTRING(MD5(RAND()) FROM 1 FOR 50) AS head,
+   SUBSTRING(MD5(RAND()) FROM 1 FOR 500) AS body,
+   FLOOR(1 + (RAND() * 20)) AS media_id,
+   FLOOR(RAND()+0.5) AS is_public,
+   FLOOR(RAND()+0.5) AS is_archived,
+   FLOOR(1 + (RAND() * 50)) AS views_counter 
+FROM users;
+
+INSERT INTO posts (user_id, community_id, head, body, media_id, is_public, is_archived, views_counter, created_at)
+  SELECT p.user_id AS user_id
+    ,p.community_id AS community_id
+    ,p.head AS head
+    ,p.body AS body
+    ,p.media_id AS media_id
+    ,p.is_public AS is_public
+    ,p.is_archived AS is_archived
+    ,p.views_counter AS views_counter
+    ,u.created_at + INTERVAL RAND()*(TO_DAYS(now()) - TO_DAYS(u.created_at)) DAY AS created_at
+    FROM tmp_table AS p
+	LEFT OUTER JOIN users u
+		ON p.user_id = u.id;
+		
+SHOW TABLES;
+
++---------------------+
+| Tables_in_example   |
++---------------------+
+| communities         |
+| communities_users   |
+| friendship          |
+| friendship_history  |
+| friendship_statuses |
+| likes               |
+| media               |
+| media_types         |
+| messages            |
+| posts               |
+| profiles            |
+| target_types        |
+| users               |
++---------------------+
+13 rows in set (0.00 sec)
+
+-- Проверка, что все лайки в таблице лайков привязаны к своим target-ам. Т.е. что нет несуществующего таргета.
+SELECT 
+	l.id
+	,l.user_id
+	,l.target_id
+	,l.target_type_id
+	,l.created_at
+	,m.id
+FROM likes l
+	LEFT JOIN messages m
+		ON target_id = m.id
+WHERE target_type_id = 1 and m.id IS NULL
+UNION
+SELECT 
+	l.id
+	,l.user_id
+	,l.target_id
+	,l.target_type_id
+	,l.created_at
+	,u.id
+FROM likes l
+	LEFT JOIN users u 
+		ON target_id = u.id
+WHERE target_type_id = 2 and u.id IS NULL
+UNION
+SELECT 
+	l.id
+	,l.user_id
+	,l.target_id
+	,l.target_type_id
+	,l.created_at
+	,m.id
+FROM likes l
+	LEFT JOIN media m 
+		ON target_id = m.id
+WHERE target_type_id = 3 and m.id IS NULL
+UNION
+SELECT 
+	l.id
+	,l.user_id
+	,l.target_id
+	,l.target_type_id
+	,l.created_at
+	,p.id
+ FROM likes l
+	LEFT JOIN posts p 
+		ON target_id = p.id
+ WHERE target_type_id = 4 and p.id IS NULL;
+
+# Проверим, что в таблице лайков "пролайканы" сушествующие сообщения, пользователи, медиа или посты.
+SELECT 
+	l.id
+	,l.user_id
+	,l.target_id
+	,l.target_type_id
+	,l.created_at
+	,m.id
+FROM likes l
+	LEFT JOIN messages m
+		ON target_id = m.id
+WHERE target_type_id = 1 and m.id IS NULL
+UNION
+SELECT 
+	l.id
+	,l.user_id
+	,l.target_id
+	,l.target_type_id
+	,l.created_at
+	,u.id
+FROM likes l
+	LEFT JOIN users u 
+		ON target_id = u.id
+WHERE target_type_id = 2 and u.id IS NULL
+UNION
+SELECT 
+	l.id
+	,l.user_id
+	,l.target_id
+	,l.target_type_id
+	,l.created_at
+	,m.id
+FROM likes l
+	LEFT JOIN media m 
+		ON target_id = m.id
+WHERE target_type_id = 3 and m.id IS NULL
+UNION
+SELECT 
+	l.id
+	,l.user_id
+	,l.target_id
+	,l.target_type_id
+	,l.created_at
+	,p.id
+ FROM likes l
+	LEFT JOIN posts p 
+		ON target_id = p.id
+ WHERE target_type_id = 4 and p.id IS NULL;
+
+Empty set (0.01 sec) -- действительно NULL нигде нет. Все присоединилось.
+-- Таблицы лайков и постов созданы.
+
