@@ -1,0 +1,86 @@
+USE example;
+
+-- 5. Найти 10 пользователей, которые проявляют наименьшую активность в использовании социальной сети
+-- (критерии активности необходимо определить самостоятельно).
+
+-- добавил в базу самого молодого пользователя совсем без лайков, чтобы исправить ошибку допущенную при первой попытке сдачи практического задания. 
+--  В прошлый раз не учел пользователей, вообще не проявлявших активности
+
+INSERT INTO users (first_name, last_name, email, phone) values ('Ostap', 'Bender', 'futurama_3000@mail.ru', '+7 (916) 123-45-67');
+INSERT INTO profiles (user_id, gender, birthday, city, country) values (101, 'm', '2020-01-01', 'Moscow', 'Russia');
+
+-- 
+-- доавил во внутренний SELECT еще один UNION:
+--
+-- 		UNION ALL
+--
+--		SELECT
+--			0
+--			,u.id 
+--		FROM users AS u
+
+
+-- Пусть критерием будет общее число сообщений, постов, лайков и выложенных картинок/видео.
+SELECT 
+	SUM(t.activity_id) AS quantity
+	,(SELECT u.first_name FROM users AS u WHERE t.u_id = u.id) as first_name
+ 	,(SELECT u.last_name FROM users AS u WHERE t.u_id = u.id) as last_name
+    ,(SELECT p.birthday FROM profiles AS p WHERE t.u_id = p.user_id) as birthday
+    ,t.u_id 
+   FROM
+		(SELECT
+			COUNT(l.id) AS activity_id
+			,l.user_id as u_id
+		FROM likes AS l
+		GROUP BY u_id
+
+		UNION ALL
+
+		SELECT
+			COUNT(p.id)
+			,p.user_id as u_id
+		FROM posts AS p
+		GROUP BY u_id
+
+		UNION ALL
+
+		SELECT
+			COUNT(m.id)
+			,m.from_user_id as u_id
+		FROM messages AS m
+		GROUP BY u_id
+		UNION ALL
+
+		SELECT
+			COUNT(m.id)
+			,m.user_id as u_id
+		FROM media AS m
+		GROUP BY u_id
+
+        
+ 		UNION ALL
+
+		SELECT
+			0
+			,u.id 
+		FROM users AS u
+        
+        ) AS t
+ GROUP BY t.u_id, first_name, last_name, birthday
+ ORDER BY quantity
+
++----------+------------+-----------+------------+------+
+| quantity | first_name | last_name | birthday   | u_id |
++----------+------------+-----------+------------+------+
+|        0 | Ostap      | Bender    | 2020-01-01 |  101 |
+|       23 | Myrl       | Cronin    | 1980-05-19 |   57 |
+|       26 | Godfrey    | Green     | 1974-02-27 |   93 |
+|       26 | Lura       | Weimann   | 1997-03-02 |   66 |
+|       28 | Sammy      | Willms    | 1975-06-17 |   94 |
+|       28 | Dorothea   | Langworth | 1989-06-25 |   15 |
+|       28 | Josianne   | Veum      | 2015-05-26 |   99 |
+|       28 | Rowena     | Abbott    | 1980-06-05 |   53 |
+|       29 | Morris     | Bailey    | 1978-02-21 |   52 |
+|       29 | Howell     | Lind      | 1991-04-15 |   28 |
++----------+------------+-----------+------------+------+
+10 rows in set (0.01 sec)
