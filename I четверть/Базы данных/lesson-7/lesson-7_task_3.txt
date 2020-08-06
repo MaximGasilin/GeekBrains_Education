@@ -1,0 +1,73 @@
+-- 3. (по желанию) Пусть имеется таблица рейсов flights (id, from, to) и таблица городов cities (label, name). 
+-- Поля from, to и label содержат английские названия городов, поле name — русское. Выведите список рейсов flights с русскими названиями городов.
+
+-- создание таблиц и проверка
+
+DROP TABLE IF EXISTS flights;
+CREATE TABLE flights (
+  id SERIAL PRIMARY KEY,
+  `from` VARCHAR(100),
+  `to` VARCHAR(100)
+) COMMENT = 'Рейсы';
+INSERT INTO flights (`from`, `to`) values ('moscow', 'omsk');
+INSERT INTO flights (`from`, `to`) values ('novgorod', 'kazan');
+INSERT INTO flights (`from`, `to`) values ('irkutsk', 'moscow');
+INSERT INTO flights (`from`, `to`) values ('omsk', 'irkutsk');
+INSERT INTO flights (`from`, `to`) values ('moscow', 'kazan');
+
+SELECT * FROM flights;
+
++----+----------+---------+
+| id | from     | to      |
++----+----------+---------+
+|  1 | moscow   | omsk    |
+|  2 | novgorod | kazan   |
+|  3 | irkutsk  | moscow  |
+|  4 | omsk     | irkutsk |
+|  5 | moscow   | kazan   |
++----+----------+---------+
+5 rows in set (0.00 sec)
+
+DROP TABLE IF EXISTS cities;
+CREATE TABLE cities (
+  label VARCHAR(100),
+  name VARCHAR(100)
+) COMMENT = 'Маппинг названий городов';
+INSERT INTO cities (label, name) values ('moscow', 'Москва');
+INSERT INTO cities (label, name) values ('irkutsk', 'Иркутск');
+INSERT INTO cities (label, name) values ('novgorod', 'Новгород');
+INSERT INTO cities (label, name) values ('kazan', 'Казань');
+INSERT INTO cities (label, name) values ('omsk', 'Омск');
+
+SELECT * FROM cities;
++----------+------------------+
+| label    | name             |
++----------+------------------+
+| moscow   | Москва           |
+| irkutsk  | Иркутск          |
+| novgorod | Новгород         |
+| kazan    | Казань           |
+| omsk     | Омск             |
++----------+------------------+
+5 rows in set (0.00 sec)
+
+-- задание
+SELECT f.id AS id
+	,c1.name AS `from` 
+	,c2.name AS `to`
+FROM flights AS f
+	LEFT JOIN cities AS c1
+		ON f.`from` = c1.label
+	LEFT JOIN cities AS c2
+		ON f.`to` = c2.label;
+		
++----+------------------+----------------+
+| id | from             | to             |
++----+------------------+----------------+
+|  1 | Москва           | Омск           |
+|  2 | Новгород         | Казань         |
+|  3 | Иркутск          | Москва         |
+|  4 | Омск             | Иркутск        |
+|  5 | Москва           | Казань         |
++----+------------------+----------------+
+5 rows in set (0.00 sec)
