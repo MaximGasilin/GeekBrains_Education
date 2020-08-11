@@ -1,0 +1,133 @@
+USE example;
+
+
+-- 3. Определить кто больше поставил лайков (всего) - мужчины или женщины?
+
+SELECT 
+	COUNT(l.user_id),
+    (SELECT gender FROM profiles AS p WHERE l.user_id = p.user_id) as gender
+FROM likes AS l
+GROUP BY gender;
+
++------------------+--------+
+| COUNT(l.user_id) | gender |
++------------------+--------+
+|              528 | m      |
+|              472 | f      |
++------------------+--------+
+2 rows in set (0.01 sec)
+
+-- Судя по статистике, мужчины более активны.
+
+
+-- 4. Подсчитать общее количество лайков десяти самым молодым пользователям (сколько лайков получили 10 самых молодых пользователей).
+-- Возможны 2 варианта:
+-- 1) Сколько лайков получили сами пользователи.
+-- 2) Сколько лайков получили пользователи и все их труды (сообщения, посты, медиа). Это же тоже косвенные лайки пользователям.
+
+-- более легкий вариант. Только сами пользователи
+
+SELECT * FROM target_types;
++----+----------+---------------------+
+| id | name     | created_at          |
++----+----------+---------------------+
+|  1 | messages | 2020-08-02 19:42:22 |
+|  2 | users    | 2020-08-02 19:42:22 |
+|  3 | media    | 2020-08-02 19:42:22 |
+|  4 | posts    | 2020-08-02 19:42:22 |
++----+----------+---------------------+
+4 rows in set (0.00 sec)
+
+-- будем искать лайки только самих пользователей. Самых молодых.
+
+SELECT
+	COUNT(l.target_id)
+    ,(SELECT u.first_name FROM users AS u WHERE l.target_id = u.id AND l.target_type_id = 2) as first_name
+	,(SELECT u.last_name FROM users AS u WHERE l.target_id = u.id AND l.target_type_id = 2) as last_name
+    ,(SELECT p.birthday FROM profiles AS p WHERE l.target_id = p.user_id AND l.target_type_id = 2) as birthday
+    ,(SELECT u.id FROM users AS u WHERE l.target_id = u.id AND l.target_type_id = 2) as u_id
+FROM likes AS l
+WHERE l.target_type_id = 2
+GROUP BY u_id, birthday, first_name, last_name
+ORDER BY birthday DESC
+LIMIT 10;
+
++--------------------+------------+------------+------------+------+
+| COUNT(l.target_id) | first_name | last_name  | birthday   | u_id |
++--------------------+------------+------------+------------+------+
+|                  1 | Kirsten    | Quigley    | 2019-11-18 |   68 |
+|                  4 | Trent      | Dibbert    | 2019-07-03 |   25 |
+|                  5 | Emily      | Stracke    | 2019-01-14 |   65 |
+|                  4 | Conner     | Daniel     | 2018-05-09 |    2 |
+|                  2 | Julianne   | Ward       | 2018-02-27 |   38 |
+|                  2 | Cicero     | McLaughlin | 2017-03-26 |    7 |
+|                  2 | Camille    | Zemlak     | 2015-08-04 |   79 |
+|                  3 | Josianne   | Veum       | 2015-05-26 |   99 |
+|                  6 | Felicia    | Kris       | 2013-07-22 |   33 |
+|                  3 | Shania     | Rutherford | 2013-02-06 |   77 |
++--------------------+------------+------------+------------+------+
+10 rows in set (0.01 sec)
+
+-- а теперь более сложный вариант. С учетом всех постов, сообщений, медиа контента.
+
+SELECT 
+	SUM(l.likes) AS quantity
+	,(SELECT u.first_name FROM users AS u WHERE l.u_id = u.id) as first_name
+ 	,(SELECT u.last_name FROM users AS u WHERE l.u_id = u.id) as last_name
+    ,(SELECT p.birthday FROM profiles AS p WHERE l.u_id = p.user_id) as birthday
+    ,l.u_id 
+   FROM
+		(SELECT
+			COUNT(l.target_id) AS likes
+			,(SELECT m.from_user_id FROM messages AS m WHERE l.target_id = m.id AND l.target_type_id = 1) as u_id
+		FROM likes AS l
+		WHERE l.target_type_id = 1
+		GROUP BY u_id 
+
+		UNION ALL
+
+		SELECT
+			COUNT(l.target_id)
+			,(SELECT u.id FROM users AS u WHERE l.target_id = u.id AND l.target_type_id = 2) as u_id
+		FROM likes AS l
+		WHERE l.target_type_id = 2
+		GROUP BY u_id
+
+		UNION ALL
+
+		SELECT
+			COUNT(l.target_id)
+			,(SELECT m.user_id FROM media AS m WHERE l.target_id = m.id AND l.target_type_id = 3) as u_id
+		FROM likes AS l
+		WHERE l.target_type_id = 3
+		GROUP BY u_id
+
+		UNION ALL
+
+		SELECT
+			COUNT(l.target_id)
+			,(SELECT p.user_id FROM posts AS p WHERE l.target_id = p.id AND l.target_type_id = 4) as u_id
+		FROM likes AS l
+		WHERE l.target_type_id = 4
+		GROUP BY u_id) AS l
+ GROUP BY l.u_id, first_name, last_name, birthday
+ ORDER BY birthday DESC
+ LIMIT 10;
+
++----------+------------+------------+------------+------+
+| quantity | first_name | last_name  | birthday   | u_id |
++----------+------------+------------+------------+------+
+|       10 | Kirsten    | Quigley    | 2019-11-18 |   68 |
+|        8 | Trent      | Dibbert    | 2019-07-03 |   25 |
+|        9 | Emily      | Stracke    | 2019-01-14 |   65 |
+|       11 | Conner     | Daniel     | 2018-05-09 |    2 |
+|        7 | Julianne   | Ward       | 2018-02-27 |   38 |
+|        7 | Cicero     | McLaughlin | 2017-03-26 |    7 |
+|        7 | Junior     | Walker     | 2017-02-05 |   63 |
+|        6 | Camille    | Zemlak     | 2015-08-04 |   79 |
+|        7 | Josianne   | Veum       | 2015-05-26 |   99 |
+|        9 | Felicia    | Kris       | 2013-07-22 |   33 |
++----------+------------+------------+------------+------+
+10 rows in set (0.03 sec)
+
+-- Видно, что появился еще один "молодой" пользователь (Junior Walker). Возможно ему самому никто лайков не поставил, но вот его посты пользовались популярностью. 
