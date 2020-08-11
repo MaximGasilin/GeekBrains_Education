@@ -1,0 +1,489 @@
+use example;
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- 3. Определить кто больше поставил лайков (всего) - мужчины или женщины?
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT 
+	COUNT(l.user_id),
+	p.gender as gender
+FROM likes AS l
+	LEFT JOIN profiles AS p
+		ON l.user_id = p.user_id
+GROUP BY gender;
+
++------------------+--------+
+| COUNT(l.user_id) | gender |
++------------------+--------+
+|              528 | m      |
+|              472 | f      |
++------------------+--------+
+2 rows in set (0.00 sec)
+
+-- LEFT JOIN используется для информативности. Т.к. теоретически, профиль могут удалить, а лайк, каким-то чудесным образом останенся. Или будет восстановлен из бэкапа...
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- 4. Подсчитать общее количество лайков десяти самым молодым пользователям (сколько лайков получили 10 самых молодых пользователей).
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- для начала нужно вспомнить виды типов данных, которые могут быть лайнуты.
+SELECT * FROM target_types;
++----+----------+---------------------+
+| id | name     | created_at          |
++----+----------+---------------------+
+|  1 | messages | 2020-08-02 19:42:22 |
+|  2 | users    | 2020-08-02 19:42:22 |
+|  3 | media    | 2020-08-02 19:42:22 |
+|  4 | posts    | 2020-08-02 19:42:22 |
++----+----------+---------------------+
+4 rows in set (0.02 sec)
+
+
+-- само решение с использованием JOIN-ов
+SELECT p.user_id
+	,u.first_name
+    ,u.last_name
+	,p.birthday
+    ,COUNT(DISTINCT l1.id) + COUNT(DISTINCT l2.id) +COUNT(DISTINCT l3.id) + COUNT(DISTINCT l4.id) AS likes
+FROM profiles AS p
+	LEFT JOIN likes As l1
+		ON l1.target_id = p.user_id AND l1.target_type_id = 2
+	LEFT JOIN messages AS m
+		JOIN likes AS l2
+			ON l2.target_id = m.id AND l2.target_type_id = 1
+		ON m.from_user_id = p.user_id
+	LEFT JOIN media AS d
+		JOIN likes AS l3
+			ON l3.target_id = d.id AND l3.target_type_id = 3
+		ON d.user_id = p.user_id
+	LEFT JOIN posts AS s
+		JOIN likes AS l4
+			ON l4.target_id = s.id AND l4.target_type_id = 4
+		ON s.user_id = p.user_id
+	LEFT JOIN users AS u
+		ON p.user_id = u.id
+GROUP BY p.user_id
+	,u.first_name
+    ,u.last_name
+	,p.birthday
+ORDER BY p.birthday DESC
+LIMIT 10;
+
++---------+------------+------------+------------+-------+
+| user_id | first_name | last_name  | birthday   | likes |
++---------+------------+------------+------------+-------+
+|     101 | Ostap      | Bender     | 2020-01-01 |     0 |
+|      68 | Kirsten    | Quigley    | 2019-11-18 |    10 |
+|      25 | Trent      | Dibbert    | 2019-07-03 |     8 |
+|      65 | Emily      | Stracke    | 2019-01-14 |     9 |
+|       2 | Conner     | Daniel     | 2018-05-09 |    11 |
+|      38 | Julianne   | Ward       | 2018-02-27 |     7 |
+|       7 | Cicero     | McLaughlin | 2017-03-26 |     7 |
+|      63 | Junior     | Walker     | 2017-02-05 |     7 |
+|      79 | Camille    | Zemlak     | 2015-08-04 |     6 |
+|      99 | Josianne   | Veum       | 2015-05-26 |     7 |
++---------+------------+------------+------------+-------+
+10 rows in set (1.66 sec)
+
+-- результат полностью совпадает с результатом запроса, сделанного на прошлом занятии.
+
+SELECT 
+	SUM(l.likes) AS quantity
+	,(SELECT u.first_name FROM users AS u WHERE l.u_id = u.id) as first_name
+ 	,(SELECT u.last_name FROM users AS u WHERE l.u_id = u.id) as last_name
+    ,(SELECT p.birthday FROM profiles AS p WHERE l.u_id = p.user_id) as birthday
+    ,l.u_id 
+   FROM
+		(SELECT
+			COUNT(l.target_id) AS likes
+			,(SELECT m.from_user_id FROM messages AS m WHERE l.target_id = m.id AND l.target_type_id = 1) as u_id
+		FROM likes AS l
+		WHERE l.target_type_id = 1
+		GROUP BY u_id 
+
+		UNION ALL
+
+		SELECT
+			COUNT(l.target_id)
+			,(SELECT u.id FROM users AS u WHERE l.target_id = u.id AND l.target_type_id = 2) as u_id
+		FROM likes AS l
+		WHERE l.target_type_id = 2
+		GROUP BY u_id
+
+		UNION ALL
+
+		SELECT
+			COUNT(l.target_id)
+			,(SELECT m.user_id FROM media AS m WHERE l.target_id = m.id AND l.target_type_id = 3) as u_id
+		FROM likes AS l
+		WHERE l.target_type_id = 3
+		GROUP BY u_id
+
+		UNION ALL
+
+		SELECT
+			COUNT(l.target_id)
+			,(SELECT p.user_id FROM posts AS p WHERE l.target_id = p.id AND l.target_type_id = 4) as u_id
+		FROM likes AS l
+		WHERE l.target_type_id = 4
+		GROUP BY u_id
+
+ 		UNION ALL
+
+		SELECT
+			0
+			,u.id 
+		FROM users AS u
+
+        ) AS l
+ GROUP BY l.u_id, first_name, last_name, birthday
+ ORDER BY birthday DESC
+ LIMIT 10;
+
++----------+------------+------------+------------+------+
+| quantity | first_name | last_name  | birthday   | u_id |
++----------+------------+------------+------------+------+
+|        0 | Ostap      | Bender     | 2020-01-01 |  101 |
+|       10 | Kirsten    | Quigley    | 2019-11-18 |   68 |
+|        8 | Trent      | Dibbert    | 2019-07-03 |   25 |
+|        9 | Emily      | Stracke    | 2019-01-14 |   65 |
+|       11 | Conner     | Daniel     | 2018-05-09 |    2 |
+|        7 | Julianne   | Ward       | 2018-02-27 |   38 |
+|        7 | Cicero     | McLaughlin | 2017-03-26 |    7 |
+|        7 | Junior     | Walker     | 2017-02-05 |   63 |
+|        6 | Camille    | Zemlak     | 2015-08-04 |   79 |
+|        7 | Josianne   | Veum       | 2015-05-26 |   99 |
++----------+------------+------------+------------+------+
+10 rows in set (0.03 sec)
+
+-- но этот метод решения считаю чудовищным и мало эффективным. Сделан так только для демонстрации того, что с JOIN-ом разобрался. И логику работы понимаю. В реальных условиях делал бы задачу как-то так:
+
+-- подготовил место для временных таблиц
+DROP TABLE IF EXISTS tmp_profiles;
+DROP TABLE IF EXISTS tmp_result;
+
+-- В первую таблицу выбрал бы всех интересных пользователей
+CREATE TEMPORARY TABLE tmp_profiles 
+(PRIMARY KEY (user_id))
+	SELECT 
+		p.user_id
+		,u.first_name
+		,u.last_name
+		,p.birthday 
+        ,0 AS quantity
+	FROM 
+		profiles AS p
+			JOIN users AS u
+				ON p.user_id = u.id
+	ORDER BY p.birthday DESC
+	LIMIT 10;
+
+
+-- Во вторую начал аккумулировать количество лайков по всем видам target_id
+CREATE TEMPORARY TABLE tmp_result 
+(PRIMARY KEY (user_id, target_type_id))
+SELECT 	t.user_id AS User_id
+	,t.first_name AS first_name
+	,t.last_name AS last_name
+	,t.birthday AS birthday
+    ,2 AS target_type_id
+	,COUNT(l.target_id) AS quantity
+FROM tmp_profiles AS t
+	JOIN likes AS l
+		ON l.target_id = t.user_id AND l.target_type_id = 2
+GROUP BY t.user_id
+	,t.first_name
+	,t.last_name
+	,t.birthday;
+ 
+ 
+INSERT INTO tmp_result
+SELECT um.user_id
+	,um.first_name
+	,um.last_name
+	,um.birthday
+    ,1
+	,COUNT(l.id)
+FROM
+	(SELECT t.user_id
+		,t.first_name
+		,t.last_name
+		,t.birthday
+		,m.id 
+	FROM tmp_profiles AS t
+		JOIN messages AS m
+			ON m.from_user_id = t.user_id) AS um
+		JOIN likes AS l
+			ON l.target_id = um.id AND l.target_type_id = 1
+GROUP BY um.user_id
+		,um.first_name
+		,um.last_name
+		,um.birthday;
+
+
+INSERT INTO tmp_result
+SELECT ud.user_id
+	,ud.first_name
+	,ud.last_name
+	,ud.birthday
+    ,3    
+	,COUNT(l.id)
+FROM
+	(SELECT t.user_id
+		,t.first_name
+		,t.last_name
+		,t.birthday
+			,d.id 
+	FROM tmp_profiles AS t
+		JOIN media AS d
+			ON d.user_id = t.user_id) AS ud
+	JOIN likes AS l
+		ON l.target_id = ud.id AND l.target_type_id = 3
+GROUP BY ud.user_id
+	,ud.first_name
+	,ud.last_name
+	,ud.birthday;
+
+
+INSERT INTO tmp_result
+SELECT up.user_id
+	,up.first_name
+	,up.last_name
+	,up.birthday
+    ,4
+	,COUNT(l.id)
+FROM
+	(SELECT t.user_id
+		,t.first_name
+		,t.last_name
+		,t.birthday
+			,p.id 
+	FROM tmp_profiles AS t
+		JOIN posts AS p
+			ON p.user_id = t.user_id) AS up
+		JOIN likes AS l
+			ON l.target_id = up.id AND l.target_type_id = 4 
+GROUP BY up.user_id
+	,up.first_name
+	,up.last_name
+	,up.birthday;
+
+-- В результирующую таблицу сгуппировал данные из двух временных.
+
+SELECT tp.user_id
+	,tp.first_name
+	,tp.last_name
+	,tp.birthday
+    ,SUM(IFNULL(qa.quantity,0)) AS quantity
+FROM tmp_profiles AS tp
+	LEFT JOIN tmp_result qa
+		ON tp.user_id = qa.user_id
+GROUP BY 
+	tp.user_id
+	,tp.first_name
+	,tp.last_name
+	,tp.birthday
+ORDER BY tp.birthday DESC;
+
+
+-- Очистил память от временных таблиц.
+DROP TABLE IF EXISTS tmp_profiles;
+DROP TABLE IF EXISTS tmp_result;
+
++---------+------------+------------+------------+----------+
+| user_id | first_name | last_name  | birthday   | quantity |
++---------+------------+------------+------------+----------+
+|     101 | Ostap      | Bender     | 2020-01-01 |        0 |
+|      68 | Kirsten    | Quigley    | 2019-11-18 |       10 |
+|      25 | Trent      | Dibbert    | 2019-07-03 |        8 |
+|      65 | Emily      | Stracke    | 2019-01-14 |        9 |
+|       2 | Conner     | Daniel     | 2018-05-09 |       11 |
+|      38 | Julianne   | Ward       | 2018-02-27 |        7 |
+|       7 | Cicero     | McLaughlin | 2017-03-26 |        7 |
+|      63 | Junior     | Walker     | 2017-02-05 |        7 |
+|      79 | Camille    | Zemlak     | 2015-08-04 |        6 |
+|      99 | Josianne   | Veum       | 2015-05-26 |        7 |
++---------+------------+------------+------------+----------+
+10 rows in set (0.00 sec)
+
+-- результат совпадает с предыдущими вариантами. Но работает быстрее и использует память эффективнее.
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- 5. Найти 10 пользователей, которые проявляют наименьшую активность в использовании социальной сети.
+-- Пусть критерием будет общее число сообщений, постов, лайков и выложенных картинок/видео.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+-- само решение с использованием JOIN-ов
+SELECT p.user_id
+	,u.first_name
+    ,u.last_name
+    ,COUNT(DISTINCT l.id) + COUNT(DISTINCT m.id) +COUNT(DISTINCT s.id) + COUNT(DISTINCT d.id) AS quantity
+FROM profiles AS p
+	LEFT JOIN likes As l
+		ON l.user_id = p.user_id
+	LEFT JOIN messages AS m
+		ON m.from_user_id = p.user_id
+	LEFT JOIN media AS d
+		ON d.user_id = p.user_id
+	LEFT JOIN posts AS s
+		ON s.user_id = p.user_id
+	LEFT JOIN users AS u
+		ON p.user_id = u.id
+GROUP BY p.user_id
+	,u.first_name
+    ,u.last_name
+ORDER BY COUNT(DISTINCT l.id) + COUNT(DISTINCT m.id) +COUNT(DISTINCT s.id) + COUNT(DISTINCT d.id)
+LIMIT 10;
+
++---------+------------+-----------+----------+
+| user_id | first_name | last_name | quantity |
++---------+------------+-----------+----------+
+|     101 | Ostap      | Bender    |        0 |
+|      57 | Myrl       | Cronin    |       23 |
+|      93 | Godfrey    | Green     |       26 |
+|      66 | Lura       | Weimann   |       26 |
+|      94 | Sammy      | Willms    |       28 |
+|      15 | Dorothea   | Langworth |       28 |
+|      99 | Josianne   | Veum      |       28 |
+|      53 | Rowena     | Abbott    |       28 |
+|      52 | Morris     | Bailey    |       29 |
+|      28 | Howell     | Lind      |       29 |
++---------+------------+-----------+----------+
+10 rows in set (6.67 sec)
+
+-- Скорость выполнения опять чудовищная. И наверняка память используется не очень эффиктивно. Но результат совпадает с результатом полученным на прошлом занятии.
+
+SELECT 
+	SUM(t.activity_id) AS quantity
+	,(SELECT u.first_name FROM users AS u WHERE t.u_id = u.id) as first_name
+ 	,(SELECT u.last_name FROM users AS u WHERE t.u_id = u.id) as last_name
+    ,(SELECT p.birthday FROM profiles AS p WHERE t.u_id = p.user_id) as birthday
+    ,t.u_id 
+   FROM
+		(SELECT
+			COUNT(l.id) AS activity_id
+			,l.user_id as u_id
+		FROM likes AS l
+		GROUP BY u_id
+
+		UNION ALL
+
+		SELECT
+			COUNT(p.id)
+			,p.user_id as u_id
+		FROM posts AS p
+		GROUP BY u_id
+
+		UNION ALL
+
+		SELECT
+			COUNT(m.id)
+			,m.from_user_id as u_id
+		FROM messages AS m
+		GROUP BY u_id
+		UNION ALL
+
+		SELECT
+			COUNT(m.id)
+			,m.user_id as u_id
+		FROM media AS m
+		GROUP BY u_id
+
+        
+ 		UNION ALL
+
+		SELECT
+			0
+			,u.id 
+		FROM users AS u
+        
+        ) AS t
+ GROUP BY t.u_id, first_name, last_name, birthday
+ ORDER BY quantity
+LIMIT 10;
+
++----------+------------+-----------+------------+------+
+| quantity | first_name | last_name | birthday   | u_id |
++----------+------------+-----------+------------+------+
+|        0 | Ostap      | Bender    | 2020-01-01 |  101 |
+|       23 | Myrl       | Cronin    | 1980-05-19 |   57 |
+|       26 | Godfrey    | Green     | 1974-02-27 |   93 |
+|       26 | Lura       | Weimann   | 1997-03-02 |   66 |
+|       28 | Sammy      | Willms    | 1975-06-17 |   94 |
+|       28 | Dorothea   | Langworth | 1989-06-25 |   15 |
+|       28 | Josianne   | Veum      | 2015-05-26 |   99 |
+|       28 | Rowena     | Abbott    | 1980-06-05 |   53 |
+|       29 | Morris     | Bailey    | 1978-02-21 |   52 |
+|       29 | Howell     | Lind      | 1991-04-15 |   28 |
++----------+------------+-----------+------------+------+
+10 rows in set (0.00 sec)
+
+-- Я бы только JOIN добавил, заменив вложенный запрос. И такое решение считаю вполне эффективным в данной задаче
+
+SELECT 
+	SUM(t.activity_id) AS quantity
+	,u.first_name  as first_name
+ 	,u.last_name as last_name
+    ,t.u_id 
+   FROM
+		(SELECT
+			COUNT(l.id) AS activity_id
+			,l.user_id as u_id
+		FROM likes AS l
+		GROUP BY u_id
+
+		UNION ALL
+
+		SELECT
+			COUNT(p.id)
+			,p.user_id as u_id
+		FROM posts AS p
+		GROUP BY u_id
+
+		UNION ALL
+
+		SELECT
+			COUNT(m.id)
+			,m.from_user_id as u_id
+		FROM messages AS m
+		GROUP BY u_id
+		UNION ALL
+
+		SELECT
+			COUNT(m.id)
+			,m.user_id as u_id
+		FROM media AS m
+		GROUP BY u_id
+
+        
+ 		UNION ALL
+
+		SELECT
+			0
+			,u.id 
+		FROM users AS u
+        
+        ) AS t
+        JOIN users AS u
+			ON u.id = t.u_id
+GROUP BY t.u_id, u.first_name, u.last_name
+ORDER BY quantity
+LIMIT 10;
+
++----------+------------+-----------+------+
+| quantity | first_name | last_name | u_id |
++----------+------------+-----------+------+
+|        0 | Ostap      | Bender    |  101 |
+|       23 | Myrl       | Cronin    |   57 |
+|       26 | Godfrey    | Green     |   93 |
+|       26 | Lura       | Weimann   |   66 |
+|       28 | Sammy      | Willms    |   94 |
+|       28 | Dorothea   | Langworth |   15 |
+|       28 | Josianne   | Veum      |   99 |
+|       28 | Rowena     | Abbott    |   53 |
+|       29 | Morris     | Bailey    |   52 |
+|       29 | Howell     | Lind      |   28 |
++----------+------------+-----------+------+
+10 rows in set (0.00 sec)
