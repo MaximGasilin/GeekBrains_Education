@@ -1,0 +1,292 @@
+-- -------------------------------------------------------------------
+-- 2.1 Создайте двух пользователей которые имеют доступ к базе данных shop. 
+       Первому пользователю shop_read должны быть доступны только запросы на чтение данных, второму пользователю shop — любые операции в пределах базы данных shop.
+-- -------------------------------------------------------------------
+
+-- создание первого пользователя.
+
+DROP USER IF EXISTS 'shop_read'@'localhost';
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+CREATE USER 'shop_read'@'localhost' IDENTIFIED WITH sha256_password BY '123';
+Query OK, 0 rows affected (0.01 sec)
+
+GRANT SELECT ON shop.* TO 'shop_read'@'localhost';
+Query OK, 0 rows affected (0.00 sec)
+
+-- создание второго пользователя.
+
+DROP USER IF EXISTS 'shop'@'localhost';
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+CREATE USER 'shop'@'localhost' IDENTIFIED WITH sha256_password BY '123';
+Query OK, 0 rows affected (0.01 sec)
+
+GRANT ALL ON shop.* TO 'shop'@'localhost';
+Query OK, 0 rows affected (0.01 sec)
+
+GRANT GRANT OPTION ON shop.* TO 'shop'@'localhost';
+Query OK, 0 rows affected (0.01 sec)
+
+use mysql;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+
+select user from user;
++------------------+
+| user             |
++------------------+
+| debian-sys-maint |
+| mysql.infoschema |
+| mysql.session    |
+| mysql.sys        |
+| root             |
+| shop             |
+| shop_read        |
++------------------+
+7 rows in set (0.00 sec)
+
+show grants for 'shop_read'@'localhost';
++------------------------------------------------------------+
+| Grants for shop_read@localhost                             |
++------------------------------------------------------------+
+| GRANT USAGE ON *.* TO `shop_read`@`localhost`              |
+| GRANT SELECT ON `shop`.* TO `shop_read`@`localhost`        |
++------------------------------------------------------------+
+3 rows in set (0.00 sec)
+
+show grants for 'shop'@'localhost';
++--------------------------------------------------------------------------+
+| Grants for shop@localhost                                                |
++--------------------------------------------------------------------------+
+| GRANT USAGE ON *.* TO `shop`@`localhost`                                 |
+| GRANT ALL PRIVILEGES ON `shop`.* TO `shop`@`localhost` WITH GRANT OPTION |
++--------------------------------------------------------------------------+
+2 rows in set (0.00 sec)
+
+
+-- перезашел под пользователем shop_read
+
+max@ubuntu-test:~$ mysql -u shop_read -p
+Enter password:
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 40
+Server version: 8.0.21-0ubuntu0.20.04.4 (Ubuntu)
+
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> use shop;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+
+
+INSERT INTO catalogs(name)
+VALUES('New catalog');
+ERROR 1142 (42000): INSERT command denied to user 'shop_read'@'localhost' for table 'catalogs'
+
+
+SELECT * FROM catalogs;
++----+-------------------------------------+
+| id | name                                |
++----+-------------------------------------+
+|  1 | Процессоры                          |
+|  2 | Материнские платы                   |
+|  3 | Видеокарты                          |
+|  4 | Жесткие диски                       |
+|  5 | Оперативная память                  |
++----+-------------------------------------+
+5 rows in set (0.00 sec)
+
+exit
+Bye
+
+-- перезашел под пользователем shop
+
+max@ubuntu-test:~$ mysql -u shop -p
+Enter password:
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 42
+Server version: 8.0.21-0ubuntu0.20.04.4 (Ubuntu)
+
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> use shop;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+
+SELECT * FROM catalogs;
+mysql> SELECT * FROM catalogs;
++----+-------------------------------------+
+| id | name                                |
++----+-------------------------------------+
+|  1 | Процессоры                          |
+|  2 | Материнские платы                   |
+|  3 | Видеокарты                          |
+|  4 | Жесткие диски                       |
+|  5 | Оперативная память                  |
++----+-------------------------------------+
+5 rows in set (0.00 sec)
+
+INSERT INTO catalogs(name) VALUES('New catalog');
+Query OK, 1 row affected (0.01 sec)
+
+ -- have new catalog
+SELECT * FROM catalogs;
+
+mysql> SELECT * FROM catalogs;
++----+-------------------------------------+
+| id | name                                |
++----+-------------------------------------+
+|  1 | Процессоры                          |
+|  2 | Материнские платы                   |
+|  3 | Видеокарты                          |
+|  4 | Жесткие диски                       |
+|  5 | Оперативная память                  |
+|  6 | New catalog                         |
++----+-------------------------------------+
+6 rows in set (0.00 sec)
+
+exit
+Bye
+-- --------------------------------------------------------------------- 
+-- 2.2 Пусть имеется таблица accounts содержащая три столбца id, name, password, содержащие первичный ключ, имя пользователя и его пароль. 
+--     Создайте представление username таблицы accounts, предоставляющий доступ к столбца id и name. 
+--     Создайте пользователя user_read, который бы не имел доступа к таблице accounts, однако, мог бы извлекать записи из представления username.
+-- -------------------------------------------------------------------
+
+DROP TABLE IF EXISTS accounts;
+CREATE TABLE accounts (
+	id SERIAL PRIMARY KEY,
+	name VARCHAR(45),
+	password VARCHAR(45)
+);
+Query OK, 0 rows affected (0.01 sec)
+
+INSERT INTO accounts VALUES
+	(NULL, 'Vic', '123'),
+	(NULL, 'Max', '456'),
+	(NULL, 'Bender', '789');
+Query OK, 3 rows affected (0.01 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+SELECT * FROM accounts;
++----+--------+----------+
+| id | name   | password |
++----+--------+----------+
+|  1 | Vic    | 123      |
+|  2 | Max    | 456      |
+|  3 | Bender | 789      |
++----+--------+----------+
+3 rows in set (0.00 sec)
+
+CREATE OR REPLACE VIEW username(user_id, user_name) AS 
+	SELECT id, name FROM accounts;
+Query OK, 0 rows affected (0.02 sec)
+
+SELECT * FROM username;
++---------+-----------+
+| user_id | user_name |
++---------+-----------+
+|       1 | Vic       |
+|       2 | Max       |
+|       3 | Bender    |
++---------+-----------+
+3 rows in set (0.00 sec)
+
+DROP USER IF EXISTS 'shop_read'@'localhost';
+
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+CREATE USER 'shop_read'@'localhost' IDENTIFIED WITH sha256_password BY '123';
+Query OK, 0 rows affected, 1 warning (0.01 sec)
+
+GRANT SELECT ON sample.username TO 'shop_read'@'localhost';
+Query OK, 0 rows affected, 1 warning (0.01 sec)
+
+use mysql;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+
+select user from user;
++------------------+
+| user             |
++------------------+
+| debian-sys-maint |
+| mysql.infoschema |
+| mysql.session    |
+| mysql.sys        |
+| root             |
+| shop_read        |
++------------------+
+6 rows in set (0.00 sec)
+
+show grants for 'shop_read'@'localhost';
++----------------------------------------------------------------+
+| Grants for shop_read@localhost                                 |
++----------------------------------------------------------------+
+| GRANT USAGE ON *.* TO `shop_read`@`localhost`                  |
+| GRANT SELECT ON `sample`.`username` TO `shop_read`@`localhost` |
++----------------------------------------------------------------+
+2 rows in set (0.00 sec)
+
+exit
+Bye
+
+-- перезашел под пользователем shop_read
+
+max@ubuntu-test:~$ mysql -u shop_read -p
+Enter password:
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 44
+Server version: 8.0.21-0ubuntu0.20.04.4 (Ubuntu)
+
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> use sample;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+
+SELECT * FROM accounts;
+ERROR 1142 (42000): SELECT command denied to user 'shop_read'@'localhost' for table 'accounts'
+
+SELECT * FROM username;
++---------+-----------+
+| user_id | user_name |
++---------+-----------+
+|       1 | Vic       |
+|       2 | Max       |
+|       3 | Bender    |
++---------+-----------+
+3 rows in set (0.01 sec)
+
+exit
+Bye
+
