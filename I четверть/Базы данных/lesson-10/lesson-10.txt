@@ -1,0 +1,339 @@
+-- -------------------------------------------------------------------
+-- 1 Проанализировать какие запросы могут выполняться наиболее
+--   часто в процессе работы приложения и добавить необходимые индексы.
+-- -------------------------------------------------------------------
+
+-- В моей базе оказались созданными все возможные индексы. 
+-- Но, поскольку нас очень часто интересовала статистика активности считаю целесообразным создать отдельную
+-- таблицу activity_statistics в которой отражать в разрезе дней и пользователей данные об активности.
+-- Лайки, создание или изменение сообщений, постов или видов медиа.
+-- Написал скрипт для создания этой таблицы и заполнения на основании уже существующих данных.
+-- Дальнейшее увеличение счетчиков можно реализовать либо триггерами, что сильно загрузит базу и требует контроля при программировании
+-- либо создать хранимую процедуру, которая раз в день (или несколько раз в день) обновляет таблицу статистики.
+
+DROP TABLE IF EXISTS `activity_statistics`;
+
+CREATE TABLE `activity_statistics` (
+  `user_id` int unsigned NOT NULL COMMENT 'Идентификатор пользователя',
+  `period` date NOT NULL COMMENT 'Дата активности',
+  `likes` int unsigned NOT NULL DEFAULT 0,
+  `messages` int unsigned NOT NULL DEFAULT 0,
+  `messages_changes` int unsigned NOT NULL DEFAULT 0,
+  `media` int unsigned NOT NULL DEFAULT 0,
+  `media_changes` int unsigned NOT NULL DEFAULT 0,
+  `posts` int unsigned NOT NULL DEFAULT 0,
+  `posts_changes` int unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`user_id`, `period`) COMMENT 'Для каждого пользователя должно быть не больше одной строки на конкретную дату',
+  KEY `activity_period_fk` (`period`),
+  CONSTRAINT `activity_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) COMMENT='Статистика активности';
+
+INSERT INTO activity_statistics 
+SELECT user_id
+	,period
+    ,SUM(likes)
+    ,SUM(messages)
+    ,SUM(messages_changes)
+    ,SUM(media)
+    ,SUM(media_changes)
+    ,SUM(posts)
+    ,SUM(posts_changes)
+FROM (
+SELECT user_id AS user_id
+	,DATE(created_at) AS period
+    ,COUNT(id) AS likes
+    ,0 AS messages
+    ,0 AS messages_changes
+    ,0 AS media
+    ,0 AS media_changes
+    ,0 AS posts
+    ,0 AS posts_changes
+FROM likes
+GROUP BY user_id, period
+
+UNION ALL
+
+SELECT from_user_id
+	,DATE(created_at) AS period
+    ,0 AS likes
+    ,COUNT(id) AS messages
+    ,0 AS messages_changes
+    ,0 AS media
+    ,0 AS media_changes
+    ,0 AS posts
+    ,0 AS posts_changes
+FROM messages
+GROUP BY from_user_id, period
+
+UNION ALL
+
+SELECT from_user_id
+	,DATE(updated_at) AS period
+    ,0 AS likes
+    ,0 AS messages
+    ,COUNT(id) AS messages_changes
+    ,0 AS media
+    ,0 AS media_changes
+    ,0 AS posts
+    ,0 AS posts_changes
+FROM messages 
+WHERE DATE(created_at) <> DATE(updated_at)
+GROUP BY from_user_id, period
+
+UNION ALL
+
+SELECT user_id
+	,DATE(created_at) AS period
+    ,0 AS likes
+    ,0 AS messages
+    ,0 AS messages_changes
+    ,COUNT(id) AS media
+    ,0 AS media_changes
+    ,0 AS posts
+    ,0 AS posts_changes
+FROM media
+GROUP BY user_id, period
+
+UNION ALL
+
+SELECT user_id
+	,DATE(updated_at) AS period
+    ,0 AS likes
+    ,0 AS messages
+    ,0 AS messages_changes
+    ,0 AS media
+    ,COUNT(id) AS media_changes
+    ,0 AS posts
+    ,0 AS posts_changes
+FROM media 
+WHERE DATE(created_at) <> DATE(updated_at)
+GROUP BY user_id, period
+
+UNION ALL
+
+SELECT user_id
+	,DATE(created_at) AS period
+    ,0 AS likes
+    ,0 AS messages
+    ,0 AS messages_changes
+    ,0 AS media
+    ,0 AS media_changes
+    ,COUNT(id) AS posts
+    ,0 AS posts_changes
+FROM posts
+GROUP BY user_id, period
+
+UNION ALL
+
+SELECT user_id
+	,DATE(updated_at) AS period
+    ,0 AS likes
+    ,0 AS messages
+    ,0 AS messages_changes
+    ,0 AS media
+    ,0 AS media_changes
+    ,0 AS posts
+    ,COUNT(id) AS posts_changes
+FROM posts 
+WHERE DATE(created_at) <> DATE(updated_at)
+GROUP BY user_id, period
+
+) AS t
+GROUP BY user_id, period;
+
+-- -------------------------------------------------------------------
+-- 2  Задание на оконные функции
+-- Построить запрос, который будет выводить следующие столбцы:
+-- а) имя группы
+-- б) среднее количество пользователей в группах
+-- в) самый молодой пользователь в группе
+-- г) самый старший пользователь в группе
+-- д) общее количество пользователей в группе
+-- е) всего пользователей в системе
+-- ж) отношение в процентах (общее количество пользователей в группе / всего пользователей в системе) * 100
+-- -------------------------------------------------------------------
+
+SELECT DISTINCT
+	FIRST_VALUE(c.name) OVER (PARTITION BY c.id) AS name
+    ,COUNT(cu.user_id) OVER() / c.communities_count AS average_users_in_community  
+    ,MAX(p.birthday) OVER w AS youngest_in_group
+	,MIN(p.birthday) OVER w AS oldest_in_group
+    ,COUNT(cu.user_id) OVER w AS count_in_group
+    ,p.profiles_count AS users_count
+    ,COUNT(cu.user_id) OVER w / p.profiles_count * 100 AS percent_in_group
+FROM (SELECT id, name, created_at, updated_at, COUNT(id) OVER() AS communities_count FROM communities ) AS c
+	LEFT JOIN communities_users AS cu
+		ON c.id = cu.community_id
+	LEFT JOIN (SELECT p1.user_id AS user_id
+					,p1.birthday AS birthday
+					,u1.first_name as first_name
+                    ,u1.last_name as last_name
+					,COUNT(p1.user_id) OVER() AS profiles_count 
+			   FROM profiles AS p1
+				 JOIN users AS u1
+					ON p1.user_id = u1.id) AS p
+		ON p.user_id = cu.user_id
+WINDOW w AS (PARTITION BY cu.community_id);
+
+-- -------------------------------------------------------------------
+-- 3. Задание на денормализацию
+--    Разобраться как построен и работает следующий запрос:
+--    Найти 10 пользователей, которые проявляют наименьшую активность
+--    в использовании социальной сети.
+-- 
+--    SELECT users.id,
+--    COUNT(DISTINCT messages.id) +
+--    COUNT(DISTINCT likes.id) +
+--    COUNT(DISTINCT media.id) AS activity
+--    FROM users
+--    LEFT JOIN messages
+--    ON users.id = messages.from_user_id
+--    LEFT JOIN likes
+--    ON users.id = likes.user_id
+--    LEFT JOIN media
+--    ON users.id = media.user_id
+--    GROUP BY users.id
+--    ORDER BY activity
+--    LIMIT 10;
+
+--    Правильно-ли он построен?
+--    Какие изменения, включая денормализацию, можно внести в структуру БД
+--    чтобы существенно повысить скорость работы этого запроса?
+-- -------------------------------------------------------------------
+
+-- Чисто теоретически - запрос правильный и дает верный результат.
++-----+----------+
+| id  | activity |
++-----+----------+
+| 101 |        0 |
+|  57 |       22 |
+|  93 |       25 |
+|  66 |       26 |
+|  53 |       27 |
+|  42 |       28 |
+|  70 |       28 |
+|  17 |       28 |
+|  67 |       28 |
+|  52 |       28 |
++-----+----------+
+10 rows in set (0.16 sec)
+
+
+-- Но большое обилие LEFT JOIN по не индексированным полям дает большую нагрузку на систему.
+
+-- Одним из вариантов решения для конкретной задачи - будет создание индексов по полю "user_id" в таблицах messages, likes, media.
+-- Но это увеичит нагрузку на систему в момент записи.
+
+-- Второй вариант - оптимизация запроса.
+-- Даже вот такой вариант работает эффективнее, хотя и использует несколько объединений во внутреннем селекте.
+
+SELECT DISTINCT
+	SUM(t.quantity) OVER(PARTITION BY t.u_id) AS quantity
+	,(SELECT u.first_name FROM users AS u WHERE t.u_id = u.id) as first_name
+ 	,(SELECT u.last_name FROM users AS u WHERE t.u_id = u.id) as last_name
+    ,(SELECT p.birthday FROM profiles AS p WHERE t.u_id = p.user_id) as birthday
+    ,t.u_id 
+   FROM
+		(SELECT DISTINCT
+			COUNT(l.id) OVER(PARTITION BY l.user_id) AS quantity
+			,l.user_id as u_id
+		FROM likes AS l
+
+		UNION ALL
+
+		SELECT DISTINCT
+			COUNT(m.id) OVER(PARTITION BY m.from_user_id) 
+			,m.from_user_id as u_id
+		FROM messages AS m
+
+		UNION ALL
+
+		SELECT DISTINCT
+			COUNT(m.id) OVER(PARTITION BY m.user_id)
+			,m.user_id as u_id
+		FROM media AS m
+
+        
+ 		UNION ALL
+
+		SELECT
+			0
+			,u.id 
+		FROM users AS u
+        
+        ) AS t
+ORDER BY quantity
+LIMIT 10;
+
++----------+------------+-----------+------------+------+
+| quantity | first_name | last_name | birthday   | u_id |
++----------+------------+-----------+------------+------+
+|        0 | Ostap      | Bender    | 2020-01-01 |  101 |
+|       22 | Myrl       | Cronin    | 1980-05-19 |   57 |
+|       25 | Godfrey    | Green     | 1974-02-27 |   93 |
+|       26 | Lura       | Weimann   | 1997-03-02 |   66 |
+|       27 | Rowena     | Abbott    | 1980-06-05 |   53 |
+|       28 | Larue      | Becker    | 1975-07-04 |   42 |
+|       28 | Zena       | Miller    | 2003-11-27 |   70 |
+|       28 | Gonzalo    | Rau       | 1978-09-23 |   17 |
+|       28 | Simeon     | Schiller  | 1998-09-02 |   67 |
+|       28 | Morris     | Bailey    | 1978-02-21 |   52 |
++----------+------------+-----------+------------+------+
+10 rows in set (0.01 sec)
+
+-- Но, по опыту, самым эффективным в данном случае будет работа через временные таблицы
+-- Третий вариант - использование временных индексированных таблиц.
+
+-- подготовил место для временной таблицы
+DROP TABLE IF EXISTS tmp_result;
+
+-- заполнил ее данным об активности
+CREATE TEMPORARY TABLE tmp_result 
+(PRIMARY KEY (user_id, activity_id))
+SELECT DISTINCT
+	l.user_id as user_id
+    ,1 AS activity_id
+	,COUNT(l.id) OVER(PARTITION BY l.user_id) AS quantity
+FROM likes AS l;
+
+INSERT INTO tmp_result
+	SELECT DISTINCT
+		m.from_user_id as u_id
+		,2
+		,COUNT(m.id) OVER(PARTITION BY m.from_user_id) 
+	FROM messages AS m;
+
+INSERT INTO tmp_result
+	SELECT DISTINCT
+		m.user_id
+		,3
+		,COUNT(m.id) OVER(PARTITION BY m.user_id) 
+	FROM media AS m;
+
+SELECT DISTINCT
+	u.id
+	,SUM(IFNULL(r.quantity, 0)) OVER(PARTITION BY u.id) AS quantity
+FROM users AS u
+	LEFT JOIN tmp_result AS r
+		ON u.id = r.user_id
+ORDER BY quantity
+LIMIT 10;
+
+
++-----+----------+
+| id  | quantity |
++-----+----------+
+| 101 |        0 |
+|  57 |       22 |
+|  93 |       25 |
+|  66 |       26 |
+|  53 |       27 |
+|  15 |       28 |
+|  17 |       28 |
+|  32 |       28 |
+|  42 |       28 |
+|  52 |       28 |
++-----+----------+
+10 rows in set (0.00 sec)
+
+DROP TABLE IF EXISTS tmp_result;
