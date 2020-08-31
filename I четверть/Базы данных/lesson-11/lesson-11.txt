@@ -1,0 +1,232 @@
+USE shop;
+
+-- -------------------------------------------------------------------
+-- 1 Создайте таблицу logs типа Archive. 
+-- Пусть при каждом создании записи в таблицах users, catalogs и products в таблицу logs помещается 
+-- время и дата создания записи, название таблицы, идентификатор первичного ключа и содержимое поля name.
+-- -------------------------------------------------------------------
+
+DROP TABLE IF EXISTS logs;
+CREATE TABLE logs (
+ 	created_at DATETIME NOT NULL,
+ 	table_name VARCHAR(50) NOT NULL,
+	pk_id BIGINT(20) NOT NULL,
+ 	name_value VARCHAR(255) NOT NULL
+) ENGINE = ARCHIVE;
+
+
+DESCRIBE logs;
+
++------------+--------------+------+-----+---------+-------+
+| Field      | Type         | Null | Key | Default | Extra |
++------------+--------------+------+-----+---------+-------+
+| created_at | datetime     | NO   |     | NULL    |       |
+| table_name | varchar(50)  | NO   |     | NULL    |       |
+| pk_id      | bigint       | NO   |     | NULL    |       |
+| name_value | varchar(255) | NO   |     | NULL    |       |
++------------+--------------+------+-----+---------+-------+
+4 rows in set (0.00 sec)
+
+-- Создание триггеров
+
+DROP TRIGGER IF EXISTS log_insert_into_users;
+delimiter //
+CREATE TRIGGER log_insert_into_users AFTER INSERT ON users
+FOR EACH ROW
+BEGIN
+	INSERT INTO logs (created_at, table_name, pk_id, name_value)
+	VALUES (NOW(), 'users', NEW.id, NEW.name);
+END //
+delimiter ;
+
+DROP TRIGGER IF EXISTS log_insert_into_catalogs;
+delimiter //
+CREATE TRIGGER log_insert_into_catalogs AFTER INSERT ON catalogs
+FOR EACH ROW
+BEGIN
+	INSERT INTO logs (created_at, table_name, pk_id, name_value)
+	VALUES (NOW(), 'catalogs', NEW.id, NEW.name);
+END //
+delimiter ;
+
+DROP TRIGGER IF EXISTS log_insert_into_products;
+delimiter //
+CREATE TRIGGER log_insert_into_products AFTER INSERT ON products
+FOR EACH ROW
+BEGIN
+	INSERT INTO logs (created_at, table_name, pk_id, name_value)
+	VALUES (NOW(), 'products', NEW.id, NEW.name);
+END //
+delimiter ;
+
+SELECT trigger_schema, trigger_name
+FROM information_schema.triggers;
+
++----------------+----------------------------+
+| TRIGGER_SCHEMA | TRIGGER_NAME               |
++----------------+----------------------------+
+| sys            | sys_config_insert_set_user |
+| sys            | sys_config_update_set_user |
+| shop           | ChreckNullTrigger          |
+| shop           | log_insert_into_users      |
+| shop           | log_insert_into_catalogs   |
+| shop           | log_insert_into_products   |
++----------------+----------------------------+
+6 rows in set (0.00 sec)
+
+INSERT INTO catalogs (name)
+VALUES ('Клавиатуры'),
+		('Мыши'),
+		('Мониторы');
+3 row(s) affected (0.00 sec)
+
+ 
+SELECT * FROM logs;
++---------------------+------------+-------+----------------------+
+| created_at          | table_name | pk_id | name_value           |
++---------------------+------------+-------+----------------------+
+| 2020-08-19 19:27:27 | catalogs   |     7 | Клавиатуры           |
+| 2020-08-19 19:27:27 | catalogs   |     8 | Мыши                 |
+| 2020-08-19 19:27:27 | catalogs   |     9 | Мониторы             |
++---------------------+------------+-------+----------------------+
+3 rows in set (0.00 sec)
+
+INSERT INTO products (name, description, price, catalog_id)
+VALUES ('LG UltraFine 27UL500-W 27", белый', 'Монитор', 23000.00, 9),
+		('LOGITECH M170, беспроводная, USB, серый и черный', 'Мыши', 500.00, 8),
+		('LOGITECH K120 for business, черный', 'Клавиатуры', 750.00, 7);
+3 row(s) affected (0.00 sec)
+
+SELECT * FROM logs;
+
++---------------------+------------+-------+--------------------------------------------------------------------------+
+| created_at          | table_name | pk_id | name_value                                                               |
++---------------------+------------+-------+--------------------------------------------------------------------------+
+| 2020-08-19 19:27:27 | catalogs   |     7 | Клавиатуры                                                               |
+| 2020-08-19 19:27:27 | catalogs   |     8 | Мыши                                                                     |
+| 2020-08-19 19:27:27 | catalogs   |     9 | Мониторы                                                                 |
+| 2020-08-19 19:34:20 | products   |    10 | LG UltraFine 27UL500-W 27", белый                                        |
+| 2020-08-19 19:34:20 | products   |    11 | LOGITECH M170, беспроводная, USB, серый и черный                         |
+| 2020-08-19 19:34:20 | products   |    12 | LOGITECH K120 for business, черный                                       |
++---------------------+------------+-------+--------------------------------------------------------------------------+
+6 rows in set (0.00 sec)
+
+INSERT INTO users (name, birthday_at)
+VALUES ('Ulianov Vladimir', '1870-04-10'),
+		('Einstain Albert', '1879-03-14'),
+		('Linus Torvalds', '1969-12-28');
+3 row(s) affected (0.00 sec)		
+
+SELECT * FROM logs;
++---------------------+------------+-------+--------------------------------------------------------------------------+
+| created_at          | table_name | pk_id | name_value                                                               |
++---------------------+------------+-------+--------------------------------------------------------------------------+
+| 2020-08-19 19:27:27 | catalogs   |     7 | Клавиатуры                                                               |
+| 2020-08-19 19:27:27 | catalogs   |     8 | Мыши                                                                     |
+| 2020-08-19 19:27:27 | catalogs   |     9 | Мониторы                                                                 |
+| 2020-08-19 19:34:20 | products   |    10 | LG UltraFine 27UL500-W 27", белый                                        |
+| 2020-08-19 19:34:20 | products   |    11 | LOGITECH M170, беспроводная, USB, серый и черный                         |
+| 2020-08-19 19:34:20 | products   |    12 | LOGITECH K120 for business, черный                                       |
+| 2020-08-19 19:40:50 | users      |     7 | Ulianov Vladimir                                                         |
+| 2020-08-19 19:40:50 | users      |     8 | Einstain Albert                                                          |
+| 2020-08-19 19:40:50 | users      |     9 | Linus Torvalds                                                           |
++---------------------+------------+-------+--------------------------------------------------------------------------+
+9 rows in set (0.00 sec)
+
+
+
+-- -------------------------------------------------------------------
+-- 2 (по желанию) Создайте SQL-запрос, который помещает в таблицу users миллион записей
+-- 
+-- -------------------------------------------------------------------
+
+DROP TABLE IF EXISTS users;
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) COMMENT 'Имя покупателя',
+  birthday_at DATE COMMENT 'Дата рождения',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) COMMENT = 'Покупатели';
+
+INSERT INTO users (name, birthday_at)
+SELECT CONCAT('user_', Numbers1.Number, Numbers2.Number, Numbers3.Number, Numbers4.Number, Numbers5.Number, Numbers6.Number) AS user_name,
+		'1980-01-01' + INTERVAL RAND()*365*25 DAY AS birthday_at
+FROM (
+        SELECT '0' AS Number 
+        UNION ALL SELECT '1'
+        UNION ALL SELECT '2'
+        UNION ALL SELECT '3'
+        UNION ALL SELECT '4'
+        UNION ALL SELECT '5'
+        UNION ALL SELECT '6'
+        UNION ALL SELECT '7'
+        UNION ALL SELECT '8'
+        UNION ALL SELECT '9') AS Numbers1
+        CROSS JOIN
+        (SELECT '0' AS Number 
+        UNION ALL SELECT '1'
+        UNION ALL SELECT '2'
+        UNION ALL SELECT '3'
+        UNION ALL SELECT '4'
+        UNION ALL SELECT '5'
+        UNION ALL SELECT '6'
+        UNION ALL SELECT '7'
+        UNION ALL SELECT '8'
+        UNION ALL SELECT '9')  AS Numbers2 
+        CROSS JOIN
+        (SELECT '0' AS Number 
+        UNION ALL SELECT '1'
+        UNION ALL SELECT '2'
+        UNION ALL SELECT '3'
+        UNION ALL SELECT '4'
+        UNION ALL SELECT '5'
+        UNION ALL SELECT '6'
+        UNION ALL SELECT '7'
+        UNION ALL SELECT '8'
+        UNION ALL SELECT '9')  AS Numbers3
+        CROSS JOIN
+        (SELECT '0' AS Number 
+        UNION ALL SELECT '1'
+        UNION ALL SELECT '2'
+        UNION ALL SELECT '3'
+        UNION ALL SELECT '4'
+        UNION ALL SELECT '5'
+        UNION ALL SELECT '6'
+        UNION ALL SELECT '7'
+        UNION ALL SELECT '8'
+        UNION ALL SELECT '9')  AS Numbers4 
+        CROSS JOIN
+        (SELECT '0' AS Number 
+        UNION ALL SELECT '1'
+        UNION ALL SELECT '2'
+        UNION ALL SELECT '3'
+        UNION ALL SELECT '4'
+        UNION ALL SELECT '5'
+        UNION ALL SELECT '6'
+        UNION ALL SELECT '7'
+        UNION ALL SELECT '8'
+        UNION ALL SELECT '9')  AS Numbers5
+        CROSS JOIN
+        (SELECT '0' AS Number 
+        UNION ALL SELECT '1'
+        UNION ALL SELECT '2'
+        UNION ALL SELECT '3'
+        UNION ALL SELECT '4'
+        UNION ALL SELECT '5'
+        UNION ALL SELECT '6'
+        UNION ALL SELECT '7'
+        UNION ALL SELECT '8'
+        UNION ALL SELECT '9')  AS Numbers6;
+Query OK, 1000000 rows affected (24.97 sec)
+Records: 1000000  Duplicates: 0  Warnings: 0
+
+ SELECT COUNT(*) FROM users;
++----------+
+| COUNT(*) |
++----------+
+|  1000000 |
++----------+
+1 row in set (0.04 sec)
+
+		
